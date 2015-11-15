@@ -40,11 +40,13 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   getInitialState: function getInitialState() {
+    // Universal, 'isomorphic', apps fail here
+    var height = typeof window === 'undefined' ? 0 : window.innerHeight;
     return {
       activeSection: 0,
       scrollingStarted: false,
       sectionScrolledPosition: 0,
-      windowHeight: window.innerHeight
+      windowHeight: height
     };
   },
 
@@ -77,6 +79,12 @@ var SectionsContainer = _react2['default'].createClass({
     window.removeEventListener('resize', this._handleResize);
   },
 
+  componentWillMount: function componentWillMount() {
+    if (this.state.windowHeight === 0 && typeof window !== 'undefined') {
+      this.state.windowHeight = window.innerHeight;
+    }
+  },
+
   componentDidMount: function componentDidMount() {
     window.addEventListener('resize', this._handleResize);
 
@@ -89,6 +97,13 @@ var SectionsContainer = _react2['default'].createClass({
       if (this.props.arrowNavigation) {
         window.addEventListener('keydown', this._handleArrowKeys);
       }
+    }
+
+    // Let's assume since the height is zero
+    // we need to call a resize to get a
+    // window height
+    if (this.state.windowHeight === 0) {
+      this._handleResize();
     }
   },
 

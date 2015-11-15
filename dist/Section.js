@@ -25,8 +25,11 @@ var Section = _react2['default'].createClass({
   },
 
   getInitialState: function getInitialState() {
+    // Universal, 'isomorphic', apps fail here
+    var height = typeof window === 'undefined' ? 0 : window.innerHeight;
+
     return {
-      windowHeight: window.innerHeight
+      windowHeight: height
     };
   },
 
@@ -38,6 +41,13 @@ var Section = _react2['default'].createClass({
 
   componentDidMount: function componentDidMount() {
     window.addEventListener('resize', this.handleResize);
+
+    // Let's assume since the height is zero
+    // we need to call a resize to get a
+    // window height
+    if (this.state.windowHeight === 0) {
+      this.handleResize();
+    }
   },
 
   componentWillUnmount: function componentWillUnmount() {
