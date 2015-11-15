@@ -10,37 +10,16 @@ const Section = React.createClass({
     sectionClassName: React.PropTypes.string,
     sectionPaddingTop:      React.PropTypes.string,
     sectionPaddingBottom:   React.PropTypes.string,
+    windowHeight:           React.PropTypes.number,
   },
 
   getInitialState: function() {
-    // Universal, 'isomorphic', apps fail here
-    const height = (typeof window === 'undefined') ? 0 : window.innerHeight;
-
-    return {
-      windowHeight: height
-    };
+    return {};
   },
 
-  handleResize: function() {
-    this.setState({
-      windowHeight: window.innerHeight
-    });
-  },
+  componentDidMount: function() {},
 
-  componentDidMount: function() {
-    window.addEventListener('resize', this.handleResize);
-
-    // Let's assume since the height is zero
-    // we need to call a resize to get a
-    // window height
-    if (this.state.windowHeight === 0) {
-      this.handleResize();
-    }
-  },
-
-  componentWillUnmount: function() {
-    window.removeEventListener('resize', this.handleResize);
-  },
+  componentWillUnmount: function() {},
 
   render() {
     let alignVertical = this.props.verticalAlign || this.context.verticalAlign;
@@ -48,8 +27,8 @@ const Section = React.createClass({
     let sectionStyle = {
       width:            '100%',
       display:          alignVertical ? 'table' : 'block',
-      height:           this.state.windowHeight,
-      maxHeight:        this.state.windowHeight,
+      height:           this.context.windowHeight,
+      maxHeight:        this.context.windowHeight,
       overflow:         'scroll',
       backgroundColor:  this.props.color,
       paddingTop:       this.context.sectionPaddingTop,

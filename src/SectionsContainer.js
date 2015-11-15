@@ -23,6 +23,7 @@ const SectionsContainer = React.createClass({
      sectionClassName:       React.PropTypes.string,
      sectionPaddingTop:      React.PropTypes.string,
      sectionPaddingBottom:   React.PropTypes.string,
+     windowHeight:           React.PropTypes.number,
   },
 
   getInitialState() {
@@ -58,17 +59,12 @@ const SectionsContainer = React.createClass({
        sectionClassName:       this.props.sectionClassName,
        sectionPaddingTop:      this.props.sectionPaddingTop,
        sectionPaddingBottom:   this.props.sectionPaddingBottom,
+       windowHeight:           this.state.windowHeight
      };
   },
 
   componentWillUnmount() {
     window.removeEventListener('resize', this._handleResize);
-  },
-
-  componentWillMount() {
-    if (this.state.windowHeight === 0 && typeof window !== 'undefined') {
-      this.state.windowHeight = window.innerHeight;
-    }
   },
 
   componentDidMount() {
