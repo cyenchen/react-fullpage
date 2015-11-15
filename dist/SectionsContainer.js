@@ -41,13 +41,11 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   getInitialState: function getInitialState() {
-    // Universal, 'isomorphic', apps fail here
-    var height = typeof window === 'undefined' ? 0 : window.innerHeight;
     return {
       activeSection: 0,
       scrollingStarted: false,
       sectionScrolledPosition: 0,
-      windowHeight: height
+      windowHeight: 500 // Set an initial height for server
     };
   },
 
@@ -95,12 +93,8 @@ var SectionsContainer = _react2['default'].createClass({
       }
     }
 
-    // Let's assume since the height is zero
-    // we need to call a resize to get a
-    // window height
-    if (this.state.windowHeight === 0) {
-      this._handleResize();
-    }
+    // Get actual window height
+    this._handleResize();
   },
 
   _addCSS3Scroll: function _addCSS3Scroll() {
