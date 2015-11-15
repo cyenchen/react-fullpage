@@ -27,13 +27,11 @@ const SectionsContainer = React.createClass({
   },
 
   getInitialState() {
-    // Universal, 'isomorphic', apps fail here
-    const height = (typeof window === 'undefined') ? 0 : window.innerHeight;
     return {
       activeSection: 0,
       scrollingStarted: false,
       sectionScrolledPosition: 0,
-      windowHeight: height,
+      windowHeight: 500 // Set an initial height for server
     };
   },
 
@@ -81,12 +79,8 @@ const SectionsContainer = React.createClass({
       }
     }
 
-    // Let's assume since the height is zero
-    // we need to call a resize to get a
-    // window height
-    if (this.state.windowHeight === 0) {
-      this._handleResize();
-    }
+    // Get actual window height
+    this._handleResize();
   },
 
   _addCSS3Scroll() {
