@@ -21,38 +21,17 @@ var Section = _react2['default'].createClass({
     verticalAlign: _react2['default'].PropTypes.bool,
     sectionClassName: _react2['default'].PropTypes.string,
     sectionPaddingTop: _react2['default'].PropTypes.string,
-    sectionPaddingBottom: _react2['default'].PropTypes.string
+    sectionPaddingBottom: _react2['default'].PropTypes.string,
+    windowHeight: _react2['default'].PropTypes.number
   },
 
   getInitialState: function getInitialState() {
-    // Universal, 'isomorphic', apps fail here
-    var height = typeof window === 'undefined' ? 0 : window.innerHeight;
-
-    return {
-      windowHeight: height
-    };
+    return {};
   },
 
-  handleResize: function handleResize() {
-    this.setState({
-      windowHeight: window.innerHeight
-    });
-  },
+  componentDidMount: function componentDidMount() {},
 
-  componentDidMount: function componentDidMount() {
-    window.addEventListener('resize', this.handleResize);
-
-    // Let's assume since the height is zero
-    // we need to call a resize to get a
-    // window height
-    if (this.state.windowHeight === 0) {
-      this.handleResize();
-    }
-  },
-
-  componentWillUnmount: function componentWillUnmount() {
-    window.removeEventListener('resize', this.handleResize);
-  },
+  componentWillUnmount: function componentWillUnmount() {},
 
   render: function render() {
     var alignVertical = this.props.verticalAlign || this.context.verticalAlign;
@@ -60,8 +39,8 @@ var Section = _react2['default'].createClass({
     var sectionStyle = {
       width: '100%',
       display: alignVertical ? 'table' : 'block',
-      height: this.state.windowHeight,
-      maxHeight: this.state.windowHeight,
+      height: this.context.windowHeight,
+      maxHeight: this.context.windowHeight,
       overflow: 'scroll',
       backgroundColor: this.props.color,
       paddingTop: this.context.sectionPaddingTop,

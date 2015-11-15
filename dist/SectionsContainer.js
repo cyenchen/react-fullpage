@@ -36,7 +36,8 @@ var SectionsContainer = _react2['default'].createClass({
     verticalAlign: _react2['default'].PropTypes.bool,
     sectionClassName: _react2['default'].PropTypes.string,
     sectionPaddingTop: _react2['default'].PropTypes.string,
-    sectionPaddingBottom: _react2['default'].PropTypes.string
+    sectionPaddingBottom: _react2['default'].PropTypes.string,
+    windowHeight: _react2['default'].PropTypes.number
   },
 
   getInitialState: function getInitialState() {
@@ -71,18 +72,13 @@ var SectionsContainer = _react2['default'].createClass({
       verticalAlign: this.props.verticalAlign,
       sectionClassName: this.props.sectionClassName,
       sectionPaddingTop: this.props.sectionPaddingTop,
-      sectionPaddingBottom: this.props.sectionPaddingBottom
+      sectionPaddingBottom: this.props.sectionPaddingBottom,
+      windowHeight: this.state.windowHeight
     };
   },
 
   componentWillUnmount: function componentWillUnmount() {
     window.removeEventListener('resize', this._handleResize);
-  },
-
-  componentWillMount: function componentWillMount() {
-    if (this.state.windowHeight === 0 && typeof window !== 'undefined') {
-      this.state.windowHeight = window.innerHeight;
-    }
   },
 
   componentDidMount: function componentDidMount() {
