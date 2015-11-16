@@ -204,40 +204,68 @@ const SectionsContainer = React.createClass({
     const timeDiff = curTime - this.prevMouseWheelTime;
     this.prevMouseWheelTime = curTime;
 
+    const e             = window.event || evt; // old IE support
+    const value         = e.wheelDelta || -e.deltaY || -e.detail;
+	  const delta         = Math.max(-1, Math.min(1, value));
+    const horizontalDetection = typeof e.wheelDeltaX !== 'undefined' || typeof e.deltaX !== 'undefined';
+    const isScrollingVertically = (Math.abs(e.wheelDeltaX) < Math.abs(e.wheelDelta)) || (Math.abs(e.deltaX ) < Math.abs(e.deltaY) || !horizontalDetection);
+
+    if(this.scrollings.length > 149){
+      this.scrollings.shift();
+    }
+
+    this.scrollings.push(Math.abs(value));
+
+    if(timeDiff > 200){
+      //emptying the array, we dont care about old scrollings for our averages
+      this.scrollings = [];
+    }
+
+    let activeSection = this.state.activeSection;
+
     if (this.isScrolling) {
       console.log('trapped');
       return false;
     }
 
-    const e             = evt || window.event; // old IE support
-	  const delta         = Math.max(-1, Math.min(1, (e.wheelDelta || -e.deltaY || -e.detail)));
+    var averageEnd = this._getAverage(this.scrollings, 10);
+    var averageMiddle = this._getAverage(this.scrollings, 70);
+    var isAccelerating = averageEnd >= averageMiddle;
 
-    if (timeDiff < 200) {
-      console.log('!time diff!');
-      return false;
-    }
+    if(isAccelerating && isScrollingVertically) {
+      if (delta < 0) {
+        activeSection++;
+      } else {
+        activeSection--;
+      }
 
-    let activeSection = this.state.activeSection;
+      if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+        console.log('failed: ', activeSection);
+        return false;
+      }
 
-    if (delta < 0) {
-      activeSection++;
-    } else {
-      activeSection--;
-    }
-
-    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
-      console.log('failed: ', activeSection);
-      return false;
-    }
-
-    let index = this.props.anchors[activeSection];
-    if (!this.props.anchors.length || index) {
-      window.location.hash = '#' + index;
-    } else {
-      this._goToSlide(activeSection);
+      let index = this.props.anchors[activeSection];
+      if (!this.props.anchors.length || index) {
+        window.location.hash = '#' + index;
+      } else {
+        this._goToSlide(activeSection);
+      }
     }
 
     return false;
+  },
+
+  _getAverage(elements, number) {
+    var sum = 0;
+
+    //taking `number` elements from the end to make the average, if there are not enought, 1
+    var lastElements = elements.slice(Math.max(elements.length - number, 1));
+
+    for(var i = 0; i < lastElements.length; i++){
+      sum = sum + lastElements[i];
+    }
+
+    return Math.ceil(sum/number);
   },
 
   _handleResize(initialResize) {
