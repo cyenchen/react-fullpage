@@ -116,37 +116,14 @@ const SectionsContainer = React.createClass({
     }
   },
 
-  _addChildrenWithAnchorId() {
-    var index = 0;
-    return React.Children.map(this.props.children, (child) => {
-      const id = this.props.anchors[index];
-      index++;
-      if (id) {
+  _addChildren() {
+    return React.Children.map(this.props.children, (child, index) => {
+      const ref = this.props.anchors[index] || ('section-' + index);
+      const domId = this.props.anchors[index] || null;
+      if (ref) {
         return React.cloneElement(child, {
-          ref: id,
-          id: id,
-          windowHeight:           this.state.windowHeight,
-          verticalAlign:          this.props.verticalAlign,
-          sectionClassName:       this.props.sectionClassName,
-          sectionPaddingTop:      this.props.sectionPaddingTop,
-          sectionPaddingBottom:   this.props.sectionPaddingBottom
-        });
-      } else {
-        return child;
-      }
-    }.bind(this));
-  },
-
-  _addChildrenWithAnchor() {
-    let index = 0;
-
-    return React.Children.map(this.props.children, (child) => {
-      const id = this.props.anchors[index];
-      index++;
-      if (id) {
-        return React.cloneElement(child, {
-          ref: id,
-          id: null,
+          ref: ref,
+          id: this.props.scrollBar ? domId : null,
           windowHeight:           this.state.windowHeight,
           verticalAlign:          this.props.verticalAlign,
           sectionClassName:       this.props.sectionClassName,
@@ -417,7 +394,7 @@ const SectionsContainer = React.createClass({
     return (
       <div>
         <div ref='sectionContainer' className={this.props.className} style={containerStyle}>
-          {this.props.scrollBar ? this._addChildrenWithAnchorId() : this._addChildrenWithAnchor()}
+          {this._addChildren()}
         </div>
         {this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null}
       </div>
