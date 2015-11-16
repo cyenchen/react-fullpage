@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 const SectionsContainer = React.createClass({
-  scrollId: null,
   isScrolling: false,
   newSection: false,
   scrollings: [],
@@ -21,14 +20,9 @@ const SectionsContainer = React.createClass({
     sectionPaddingTop:      React.PropTypes.string,
     sectionPaddingBottom:   React.PropTypes.string,
     arrowNavigation:        React.PropTypes.bool,
-  },
+    anchors:                React.PropTypes.array,
+    autoFooterHeight:       React.PropTypes.bool
 
-  childContextTypes: {
-     verticalAlign:          React.PropTypes.bool,
-     sectionClassName:       React.PropTypes.string,
-     sectionPaddingTop:      React.PropTypes.string,
-     sectionPaddingBottom:   React.PropTypes.string,
-     windowHeight:           React.PropTypes.number,
   },
 
   getInitialState() {
@@ -49,21 +43,12 @@ const SectionsContainer = React.createClass({
       className:            'SectionContainer',
       sectionClassName:     'Section',
       anchors:              [],
+      autoFooterHeight:     false,
       activeClass:          'active',
       sectionPaddingTop:    '0',
       sectionPaddingBottom: '0',
       arrowNavigation:      true
     };
-  },
-
-  getChildContext() {
-     return {
-       verticalAlign:          this.props.verticalAlign,
-       sectionClassName:       this.props.sectionClassName,
-       sectionPaddingTop:      this.props.sectionPaddingTop,
-       sectionPaddingBottom:   this.props.sectionPaddingBottom,
-       windowHeight:           this.state.windowHeight
-     };
   },
 
   shouldComponentUpdate(nextProps, nextState) {
@@ -76,6 +61,8 @@ const SectionsContainer = React.createClass({
 
     return false;
   },
+
+  componentDidUpdate() {},
 
   componentWillUnmount() {
     this._removeMouseWheelEventHandlers();
@@ -131,12 +118,40 @@ const SectionsContainer = React.createClass({
 
   _addChildrenWithAnchorId() {
     var index = 0;
-    return React.Children.map(this.props.children, function (child) {
-      let id = this.props.anchors[index];
+    return React.Children.map(this.props.children, (child) => {
+      const id = this.props.anchors[index];
       index++;
       if (id) {
         return React.cloneElement(child, {
-          id: id
+          ref: id,
+          id: id,
+          windowHeight:           this.state.windowHeight,
+          verticalAlign:          this.props.verticalAlign,
+          sectionClassName:       this.props.sectionClassName,
+          sectionPaddingTop:      this.props.sectionPaddingTop,
+          sectionPaddingBottom:   this.props.sectionPaddingBottom
+        });
+      } else {
+        return child;
+      }
+    }.bind(this));
+  },
+
+  _addChildrenWithAnchor() {
+    let index = 0;
+
+    return React.Children.map(this.props.children, (child) => {
+      const id = this.props.anchors[index];
+      index++;
+      if (id) {
+        return React.cloneElement(child, {
+          ref: id,
+          id: null,
+          windowHeight:           this.state.windowHeight,
+          verticalAlign:          this.props.verticalAlign,
+          sectionClassName:       this.props.sectionClassName,
+          sectionPaddingTop:      this.props.sectionPaddingTop,
+          sectionPaddingBottom:   this.props.sectionPaddingBottom
         });
       } else {
         return child;
@@ -224,7 +239,6 @@ const SectionsContainer = React.createClass({
     let activeSection = this.state.activeSection;
 
     if (this.isScrolling) {
-      console.log('trapped');
       return false;
     }
 
@@ -245,10 +259,10 @@ const SectionsContainer = React.createClass({
       }
 
       let index = this.props.anchors[activeSection];
-      if (!this.props.anchors.length || index) {
+      if (!this.props.anchors.length || index) {  // let the hash listener catch this
         window.location.hash = '#' + index;
       } else {
-        this._goToSlide(activeSection);
+        this._goToSection(activeSection);
       }
     }
 
@@ -270,30 +284,43 @@ const SectionsContainer = React.createClass({
 
   _handleResize(initialResize) {
     let position = 0;
+    let index = this.state.activeSection;
+
+    let state = {
+      windowHeight: window.innerHeight,
+    };
 
     if (initialResize) {
-      let index = this._getSectionIndexFromHash();
+      index = this._getSectionIndexFromHash();
       if (index < 0) index = this.state.activeSection;
-
-      position = 0 - (index * window.innerHeight)
-      this.setState({
-        activeSection: index,
-        windowHeight: window.innerHeight,
-        sectionScrolledPosition: position
-      });
-    } else {
-      position = 0 - (this.state.activeSection * window.innerHeight);
-      this.setState({
-        windowHeight: window.innerHeight,
-        sectionScrolledPosition: position
-      });
+      state.activeSection = index;
     }
+
+    state.sectionScrolledPosition = this._getPosition(index, state.windowHeight);
+    this.setState(state);
   },
 
-  _goToSlide(index) {
-    const position = 0 - (index * this.state.windowHeight);
+  _getPosition(index, windowHeight) {
+    windowHeight = windowHeight || this.state.windowHeight;
 
-    this.isScrolling = true;
+    let position = 0 - (index * windowHeight);
+
+    if (this.props.anchors[index] === 'footer' && this.props.autoFooterHeight && this.refs.footer) {
+      const elm = ReactDOM.findDOMNode(this.refs.footer);
+
+      elm.style.height = 'auto';
+      const height = elm.offsetHeight;
+      elm.style.height = windowHeight;
+
+      position = 0 - ((index-1) * windowHeight + height);
+    }
+
+    return position;
+  },
+
+  _goToSection(index) {
+    const position = this._getPosition(index);
+
     this.newSection = true;
 
     this.setState({
@@ -307,7 +334,7 @@ const SectionsContainer = React.createClass({
       return false;
     }
 
-    this._goToSlide(index);
+    this._goToSection(index);
   },
 
   _handleArrowKeys(e) {
@@ -364,25 +391,11 @@ const SectionsContainer = React.createClass({
       </div>
     );
   },
+
   onTransitionEnd() {
+    this.isScrolling = false;
     if (this.newSection) {
-      console.log('...ON transition end...');
-      this.scrollId = null;
       this.newSection = false;
-      this.isScrolling = false;
-      /*
-      clearTimeout(this.scrollId);
-      this.scrollId = setTimeout(() => {
-        console.log('...ON transition end...');
-        this.scrollId = null;
-        this.newSection = false;
-        this.isScrolling = false;
-        let index = this.props.anchors[this.state.activeSection];
-        if (!this.props.anchors.length || index) {
-          window.location.hash = '#' + index;
-        }
-      }, 100);
-      */
     }
   },
 
@@ -399,11 +412,12 @@ const SectionsContainer = React.createClass({
       transform:  `translate3d(0px, ${this.state.sectionScrolledPosition}px, 0px)`,
       transition: `all ${this.props.delay}ms ease`,
     };
-    console.log('...render...');
+
+    this.isScrolling = true;
     return (
       <div>
         <div ref='sectionContainer' className={this.props.className} style={containerStyle}>
-          {this.props.scrollBar ? this._addChildrenWithAnchorId() : this.props.children}
+          {this.props.scrollBar ? this._addChildrenWithAnchorId() : this._addChildrenWithAnchor()}
         </div>
         {this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null}
       </div>

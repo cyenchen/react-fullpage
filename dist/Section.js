@@ -17,14 +17,6 @@ var Section = _react2['default'].createClass({
     color: _react2['default'].PropTypes.string
   },
 
-  contextTypes: {
-    verticalAlign: _react2['default'].PropTypes.bool,
-    sectionClassName: _react2['default'].PropTypes.string,
-    sectionPaddingTop: _react2['default'].PropTypes.string,
-    sectionPaddingBottom: _react2['default'].PropTypes.string,
-    windowHeight: _react2['default'].PropTypes.number
-  },
-
   getInitialState: function getInitialState() {
     return {};
   },
@@ -33,23 +25,25 @@ var Section = _react2['default'].createClass({
 
   componentWillUnmount: function componentWillUnmount() {},
 
+  componentDidUpdate: function componentDidUpdate() {},
+
   render: function render() {
-    var alignVertical = this.props.verticalAlign || this.context.verticalAlign;
+    var alignVertical = this.props.verticalAlign;
 
     var sectionStyle = {
       width: '100%',
       display: alignVertical ? 'table' : 'block',
-      height: this.context.windowHeight,
-      maxHeight: this.context.windowHeight,
+      height: this.props.windowHeight,
+      maxHeight: this.props.windowHeight,
       overflow: 'scroll',
       backgroundColor: this.props.color,
-      paddingTop: this.context.sectionPaddingTop,
-      paddingBottom: this.context.sectionPaddingBottom
+      paddingTop: this.props.sectionPaddingTop,
+      paddingBottom: this.props.sectionPaddingBottom
     };
 
     return _react2['default'].createElement(
       'div',
-      { className: this.context.sectionClassName + (this.props.className ? ' ' + this.props.className : ''), id: this.props.id, style: sectionStyle },
+      { className: this.props.sectionClassName + (this.props.className ? ' ' + this.props.className : ''), id: this.props.id, style: sectionStyle },
       alignVertical ? this._renderVerticalAlign() : this.props.children
     );
   },

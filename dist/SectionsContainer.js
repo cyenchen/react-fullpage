@@ -17,7 +17,6 @@ var _reactDom2 = _interopRequireDefault(_reactDom);
 var SectionsContainer = _react2['default'].createClass({
   displayName: 'SectionsContainer',
 
-  scrollId: null,
   isScrolling: false,
   newSection: false,
   scrollings: [],
@@ -35,15 +34,10 @@ var SectionsContainer = _react2['default'].createClass({
     activeClass: _react2['default'].PropTypes.string,
     sectionPaddingTop: _react2['default'].PropTypes.string,
     sectionPaddingBottom: _react2['default'].PropTypes.string,
-    arrowNavigation: _react2['default'].PropTypes.bool
-  },
+    arrowNavigation: _react2['default'].PropTypes.bool,
+    anchors: _react2['default'].PropTypes.array,
+    autoFooterHeight: _react2['default'].PropTypes.bool
 
-  childContextTypes: {
-    verticalAlign: _react2['default'].PropTypes.bool,
-    sectionClassName: _react2['default'].PropTypes.string,
-    sectionPaddingTop: _react2['default'].PropTypes.string,
-    sectionPaddingBottom: _react2['default'].PropTypes.string,
-    windowHeight: _react2['default'].PropTypes.number
   },
 
   getInitialState: function getInitialState() {
@@ -64,20 +58,11 @@ var SectionsContainer = _react2['default'].createClass({
       className: 'SectionContainer',
       sectionClassName: 'Section',
       anchors: [],
+      autoFooterHeight: false,
       activeClass: 'active',
       sectionPaddingTop: '0',
       sectionPaddingBottom: '0',
       arrowNavigation: true
-    };
-  },
-
-  getChildContext: function getChildContext() {
-    return {
-      verticalAlign: this.props.verticalAlign,
-      sectionClassName: this.props.sectionClassName,
-      sectionPaddingTop: this.props.sectionPaddingTop,
-      sectionPaddingBottom: this.props.sectionPaddingBottom,
-      windowHeight: this.state.windowHeight
     };
   },
 
@@ -91,6 +76,8 @@ var SectionsContainer = _react2['default'].createClass({
 
     return false;
   },
+
+  componentDidUpdate: function componentDidUpdate() {},
 
   componentWillUnmount: function componentWillUnmount() {
     this._removeMouseWheelEventHandlers();
@@ -144,13 +131,45 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   _addChildrenWithAnchorId: function _addChildrenWithAnchorId() {
+    var _this = this;
+
     var index = 0;
     return _react2['default'].Children.map(this.props.children, (function (child) {
-      var id = this.props.anchors[index];
+      var id = _this.props.anchors[index];
       index++;
       if (id) {
         return _react2['default'].cloneElement(child, {
-          id: id
+          ref: id,
+          id: id,
+          windowHeight: _this.state.windowHeight,
+          verticalAlign: _this.props.verticalAlign,
+          sectionClassName: _this.props.sectionClassName,
+          sectionPaddingTop: _this.props.sectionPaddingTop,
+          sectionPaddingBottom: _this.props.sectionPaddingBottom
+        });
+      } else {
+        return child;
+      }
+    }).bind(this));
+  },
+
+  _addChildrenWithAnchor: function _addChildrenWithAnchor() {
+    var _this2 = this;
+
+    var index = 0;
+
+    return _react2['default'].Children.map(this.props.children, (function (child) {
+      var id = _this2.props.anchors[index];
+      index++;
+      if (id) {
+        return _react2['default'].cloneElement(child, {
+          ref: id,
+          id: null,
+          windowHeight: _this2.state.windowHeight,
+          verticalAlign: _this2.props.verticalAlign,
+          sectionClassName: _this2.props.sectionClassName,
+          sectionPaddingTop: _this2.props.sectionPaddingTop,
+          sectionPaddingBottom: _this2.props.sectionPaddingBottom
         });
       } else {
         return child;
@@ -237,14 +256,12 @@ var SectionsContainer = _react2['default'].createClass({
     var activeSection = this.state.activeSection;
 
     if (this.isScrolling) {
-      console.log('trapped');
       return false;
     }
 
     var averageEnd = this._getAverage(this.scrollings, 10);
     var averageMiddle = this._getAverage(this.scrollings, 70);
     var isAccelerating = averageEnd >= averageMiddle;
-    console.log('Is Accelerating: ', averageEnd, averageMiddle);
 
     if (isAccelerating && isScrollingVertically) {
       if (delta < 0) {
@@ -260,9 +277,10 @@ var SectionsContainer = _react2['default'].createClass({
 
       var index = this.props.anchors[activeSection];
       if (!this.props.anchors.length || index) {
+        // let the hash listener catch this
         window.location.hash = '#' + index;
       } else {
-        this._goToSlide(activeSection);
+        this._goToSection(activeSection);
       }
     }
 
@@ -284,30 +302,43 @@ var SectionsContainer = _react2['default'].createClass({
 
   _handleResize: function _handleResize(initialResize) {
     var position = 0;
+    var index = this.state.activeSection;
+
+    var state = {
+      windowHeight: window.innerHeight
+    };
 
     if (initialResize) {
-      var index = this._getSectionIndexFromHash();
+      index = this._getSectionIndexFromHash();
       if (index < 0) index = this.state.activeSection;
-
-      position = 0 - index * window.innerHeight;
-      this.setState({
-        activeSection: index,
-        windowHeight: window.innerHeight,
-        sectionScrolledPosition: position
-      });
-    } else {
-      position = 0 - this.state.activeSection * window.innerHeight;
-      this.setState({
-        windowHeight: window.innerHeight,
-        sectionScrolledPosition: position
-      });
+      state.activeSection = index;
     }
+
+    state.sectionScrolledPosition = this._getPosition(index, state.windowHeight);
+    this.setState(state);
   },
 
-  _goToSlide: function _goToSlide(index) {
-    var position = 0 - index * this.state.windowHeight;
+  _getPosition: function _getPosition(index, windowHeight) {
+    windowHeight = windowHeight || this.state.windowHeight;
 
-    this.isScrolling = true;
+    var position = 0 - index * windowHeight;
+
+    if (this.props.anchors[index] === 'footer' && this.props.autoFooterHeight && this.refs.footer) {
+      var elm = _reactDom2['default'].findDOMNode(this.refs.footer);
+
+      elm.style.height = 'auto';
+      var height = elm.offsetHeight;
+      elm.style.height = windowHeight;
+
+      position = 0 - ((index - 1) * windowHeight + height);
+    }
+
+    return position;
+  },
+
+  _goToSection: function _goToSection(index) {
+    var position = this._getPosition(index);
+
     this.newSection = true;
 
     this.setState({
@@ -321,7 +352,7 @@ var SectionsContainer = _react2['default'].createClass({
       return false;
     }
 
-    this._goToSlide(index);
+    this._goToSection(index);
   },
 
   _handleArrowKeys: function _handleArrowKeys(e) {
@@ -351,7 +382,7 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   renderNavigation: function renderNavigation() {
-    var _this = this;
+    var _this3 = this;
 
     var navigationStyle = {
       position: 'fixed',
@@ -369,9 +400,9 @@ var SectionsContainer = _react2['default'].createClass({
         backgroundColor: '#556270',
         padding: '5px',
         transition: 'all 0.2s',
-        transform: _this.state.activeSection === index ? 'scale(1.3)' : 'none'
+        transform: _this3.state.activeSection === index ? 'scale(1.3)' : 'none'
       };
-      return _react2['default'].createElement('a', { href: '#' + link, key: index, className: _this.props.navigationAnchorClass || 'Navigation-Anchor', style: _this.props.navigationAnchorClass ? null : anchorStyle });
+      return _react2['default'].createElement('a', { href: '#' + link, key: index, className: _this3.props.navigationAnchorClass || 'Navigation-Anchor', style: _this3.props.navigationAnchorClass ? null : anchorStyle });
     });
 
     return _react2['default'].createElement(
@@ -380,25 +411,11 @@ var SectionsContainer = _react2['default'].createClass({
       anchors
     );
   },
+
   onTransitionEnd: function onTransitionEnd() {
+    this.isScrolling = false;
     if (this.newSection) {
-      console.log('...ON transition end...');
-      this.scrollId = null;
       this.newSection = false;
-      this.isScrolling = false;
-      /*
-      clearTimeout(this.scrollId);
-      this.scrollId = setTimeout(() => {
-        console.log('...ON transition end...');
-        this.scrollId = null;
-        this.newSection = false;
-        this.isScrolling = false;
-        let index = this.props.anchors[this.state.activeSection];
-        if (!this.props.anchors.length || index) {
-          window.location.hash = '#' + index;
-        }
-      }, 100);
-      */
     }
   },
 
@@ -415,14 +432,15 @@ var SectionsContainer = _react2['default'].createClass({
       transform: 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
       transition: 'all ' + this.props.delay + 'ms ease'
     };
-    console.log('...render...');
+
+    this.isScrolling = true;
     return _react2['default'].createElement(
       'div',
       null,
       _react2['default'].createElement(
         'div',
         { ref: 'sectionContainer', className: this.props.className, style: containerStyle },
-        this.props.scrollBar ? this._addChildrenWithAnchorId() : this.props.children
+        this.props.scrollBar ? this._addChildrenWithAnchorId() : this._addChildrenWithAnchor()
       ),
       this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null
     );

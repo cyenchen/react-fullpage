@@ -5,14 +5,6 @@ const Section = React.createClass({
     color: React.PropTypes.string
   },
 
-  contextTypes: {
-    verticalAlign: React.PropTypes.bool,
-    sectionClassName: React.PropTypes.string,
-    sectionPaddingTop:      React.PropTypes.string,
-    sectionPaddingBottom:   React.PropTypes.string,
-    windowHeight:           React.PropTypes.number,
-  },
-
   getInitialState: function() {
     return {};
   },
@@ -21,22 +13,24 @@ const Section = React.createClass({
 
   componentWillUnmount: function() {},
 
+  componentDidUpdate: function() {},
+
   render() {
-    let alignVertical = this.props.verticalAlign || this.context.verticalAlign;
+    let alignVertical = this.props.verticalAlign;
 
     let sectionStyle = {
       width:            '100%',
       display:          alignVertical ? 'table' : 'block',
-      height:           this.context.windowHeight,
-      maxHeight:        this.context.windowHeight,
+      height:           this.props.windowHeight,
+      maxHeight:        this.props.windowHeight,
       overflow:         'scroll',
       backgroundColor:  this.props.color,
-      paddingTop:       this.context.sectionPaddingTop,
-      paddingBottom:    this.context.sectionPaddingBottom,
+      paddingTop:       this.props.sectionPaddingTop,
+      paddingBottom:    this.props.sectionPaddingBottom,
     };
 
     return (
-      <div className={this.context.sectionClassName + (this.props.className ? ` ${this.props.className}` : '')} id={this.props.id} style={sectionStyle}>
+      <div className={this.props.sectionClassName + (this.props.className ? ` ${this.props.className}` : '')} id={this.props.id} style={sectionStyle}>
         {alignVertical ? this._renderVerticalAlign() : this.props.children}
       </div>
     );
