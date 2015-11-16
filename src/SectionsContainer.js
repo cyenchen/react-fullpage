@@ -2,6 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 const SectionsContainer = React.createClass({
+  scrollId: null,
+  isScrolling: false,
+  newSection: false,
+  scrollings: [],
+  prevMouseWheelTime: new Date().getTime(),
 
   propTypes: {
     delay:                  React.PropTypes.number,
@@ -31,7 +36,7 @@ const SectionsContainer = React.createClass({
       activeSection: 0,
       scrollingStarted: false,
       sectionScrolledPosition: 0,
-      windowHeight: 500 // Set an initial height for server
+      windowHeight: 500
     };
   },
 
@@ -61,8 +66,22 @@ const SectionsContainer = React.createClass({
      };
   },
 
+  shouldComponentUpdate(nextProps, nextState) {
+    if (this.state.activeSection !== nextState.activeSection) {
+      return true;
+    }
+    if (this.state.windowHeight !== nextState.windowHeight) {
+      return true;
+    }
+
+    return false;
+  },
+
   componentWillUnmount() {
+    this._removeMouseWheelEventHandlers();
     window.removeEventListener('resize', this._handleResize);
+    window.removeEventListener('hashchange', this._handleAnchor, false);
+    window.removeEventListener('keydown', this._handleArrowKeys);
   },
 
   componentDidMount() {
@@ -71,8 +90,10 @@ const SectionsContainer = React.createClass({
     if (!this.props.scrollBar) {
       this._addCSS3Scroll();
       this._handleAnchor(); //Go to anchor in case we found it in the URL
+      this.addTransitionEnd();
 
       window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
+
 
       if (this.props.arrowNavigation) {
         window.addEventListener('keydown', this._handleArrowKeys);
@@ -80,7 +101,7 @@ const SectionsContainer = React.createClass({
     }
 
     // Get actual window height
-    this._handleResize();
+    if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
   },
 
   _addCSS3Scroll() {
@@ -98,8 +119,6 @@ const SectionsContainer = React.createClass({
     for( let i=0; i < activeLinks.length; i++) {
       activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ': '') + `${this.props.activeClass}`;
     }
-
-    //console.log(allLinks);
   },
 
   _removeActiveClass() {
@@ -144,66 +163,123 @@ const SectionsContainer = React.createClass({
   },
 
   _addMouseWheelEventHandlers() {
-    window.addEventListener('mousewheel', this._mouseWheelHandler, false);
-    window.addEventListener('DOMMouseScroll', this._mouseWheelHandler, false);
+    var prefix = '';
+    var _addEventListener;
+
+    if (window.addEventListener){
+      _addEventListener = "addEventListener";
+    }else{
+      _addEventListener = "attachEvent";
+      prefix = 'on';
+    }
+
+     // detect available wheel event
+    var support = 'onwheel' in document.createElement('div') ? 'wheel' : // Modern browsers support "wheel"
+      document.onmousewheel !== undefined ? 'mousewheel' : // Webkit and IE support at least "mousewheel"
+      'DOMMouseScroll'; // let's assume that remaining browsers are older Firefox
+
+
+    if(support == 'DOMMouseScroll'){
+      document[ _addEventListener ](prefix + 'MozMousePixelScroll', this._mouseWheelHandler, false);
+    }
+
+    //handle MozMousePixelScroll in older Firefox
+    else{
+      document[ _addEventListener ](prefix + support, this._mouseWheelHandler, false);
+    }
   },
 
   _removeMouseWheelEventHandlers() {
-    window.removeEventListener('mousewheel', this._mouseWheelHandler);
-    window.removeEventListener('DOMMouseScroll', this._mouseWheelHandler);
+    if (document.addEventListener) {
+      document.removeEventListener('mousewheel', this._mouseWheelHandler, false); //IE9, Chrome, Safari, Oper
+      document.removeEventListener('wheel', this._mouseWheelHandler, false); //Firefox
+      document.removeEventListener('MozMousePixelScroll', this._mouseWheelHandler, false); //old Firefox
+    } else {
+      document.detachEvent('onmousewheel', this._mouseWheelHandler); //IE 6/7/8
+    }
   },
 
-  _mouseWheelHandler() {
-    this._removeMouseWheelEventHandlers();
+  _mouseWheelHandler(evt) {
+    const curTime = new Date().getTime();
+    const timeDiff = curTime - this.prevMouseWheelTime;
+    this.prevMouseWheelTime = curTime;
 
-    let e             = window.event || e; // old IE support
-	  let delta         = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
-    let position      = this.state.sectionScrolledPosition + (delta * this.state.windowHeight);
-    let activeSection = this.state.activeSection - delta;
-    let maxPosition   = 0 - (this.props.children.length * this.state.windowHeight);
+    if (this.isScrolling) {
+      console.log('trapped');
+      return false;
+    }
 
-    if (position > 0 || maxPosition === position  || this.state.scrollingStarted) {
-      return this._addMouseWheelEventHandlers();
+    const e             = evt || window.event; // old IE support
+	  const delta         = Math.max(-1, Math.min(1, (e.wheelDelta || -e.deltaY || -e.detail)));
+
+    if (timeDiff < 200) {
+      console.log('!time diff!');
+      return false;
+    }
+
+    let activeSection = this.state.activeSection;
+
+    if (delta < 0) {
+      activeSection++;
+    } else {
+      activeSection--;
+    }
+
+    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+      console.log('failed: ', activeSection);
+      return false;
     }
 
     let index = this.props.anchors[activeSection];
     if (!this.props.anchors.length || index) {
       window.location.hash = '#' + index;
+    } else {
+      this._goToSlide(activeSection);
     }
 
-    this.setState({
-      activeSection: activeSection,
-      scrollingStarted: true,
-      sectionScrolledPosition: position
-    });
+    return false;
+  },
 
-    setTimeout(() => {
+  _handleResize(initialResize) {
+    let position = 0;
+
+    if (initialResize) {
+      let index = this._getSectionIndexFromHash();
+      if (index < 0) index = this.state.activeSection;
+
+      position = 0 - (index * window.innerHeight)
       this.setState({
-        scrollingStarted: false
+        activeSection: index,
+        windowHeight: window.innerHeight,
+        sectionScrolledPosition: position
       });
-      this._addMouseWheelEventHandlers();
-    }, this.props.delay + 300);
-  },
-
-  _handleResize() {
-    let position = 0 - (this.state.activeSection * window.innerHeight);
-    this.setState({
-      windowHeight: window.innerHeight,
-      sectionScrolledPosition: position
-    });
-  },
-
-  _handleSectionTransition(index) {
-    let position = 0 - (index * this.state.windowHeight);
-
-    if (!this.props.anchors.length || index === -1 || index >= this.props.anchors.length) {
-      return false;
+    } else {
+      position = 0 - (this.state.activeSection * window.innerHeight);
+      this.setState({
+        windowHeight: window.innerHeight,
+        sectionScrolledPosition: position
+      });
     }
+  },
+
+  _goToSlide(index) {
+    const position = 0 - (index * this.state.windowHeight);
+
+    this.isScrolling = true;
+    this.newSection = true;
 
     this.setState({
       activeSection: index,
       sectionScrolledPosition: position
     });
+  },
+
+  _handleSectionTransition(index) {
+    if (!this.props.anchors.length || index === -1 || index >= this.props.anchors.length) {
+      return false;
+    }
+
+    this._goToSlide(index);
   },
 
   _handleArrowKeys(e) {
@@ -218,9 +294,14 @@ const SectionsContainer = React.createClass({
     this._handleSectionTransition(direction);
   },
 
+  _getSectionIndexFromHash() {
+    const hash  = window.location.hash.substring(1);
+    return this.props.anchors.indexOf(hash);
+  },
+
   _handleAnchor() {
-    let hash  = window.location.hash.substring(1);
-    let index = this.props.anchors.indexOf(hash);
+    const index = this._getSectionIndexFromHash();
+    if (index < 0) return false;
 
     this._handleSectionTransition(index);
 
@@ -255,6 +336,32 @@ const SectionsContainer = React.createClass({
       </div>
     );
   },
+  onTransitionEnd() {
+    if (this.newSection) {
+      console.log('...ON transition end...');
+      this.scrollId = null;
+      this.newSection = false;
+      this.isScrolling = false;
+      /*
+      clearTimeout(this.scrollId);
+      this.scrollId = setTimeout(() => {
+        console.log('...ON transition end...');
+        this.scrollId = null;
+        this.newSection = false;
+        this.isScrolling = false;
+        let index = this.props.anchors[this.state.activeSection];
+        if (!this.props.anchors.length || index) {
+          window.location.hash = '#' + index;
+        }
+      }, 100);
+      */
+    }
+  },
+
+  addTransitionEnd() {
+    const elm = ReactDOM.findDOMNode(this.refs.sectionContainer);
+    elm.addEventListener('transitionend', this.onTransitionEnd);
+  },
 
   render() {
     let containerStyle = {
@@ -264,9 +371,10 @@ const SectionsContainer = React.createClass({
       transform:  `translate3d(0px, ${this.state.sectionScrolledPosition}px, 0px)`,
       transition: `all ${this.props.delay}ms ease`,
     };
+    console.log('...render...');
     return (
       <div>
-        <div className={this.props.className} style={containerStyle}>
+        <div ref='sectionContainer' className={this.props.className} style={containerStyle}>
           {this.props.scrollBar ? this._addChildrenWithAnchorId() : this.props.children}
         </div>
         {this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null}

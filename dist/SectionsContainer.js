@@ -17,6 +17,12 @@ var _reactDom2 = _interopRequireDefault(_reactDom);
 var SectionsContainer = _react2['default'].createClass({
   displayName: 'SectionsContainer',
 
+  scrollId: null,
+  isScrolling: false,
+  newSection: false,
+  scrollings: [],
+  prevMouseWheelTime: new Date().getTime(),
+
   propTypes: {
     delay: _react2['default'].PropTypes.number,
     verticalAlign: _react2['default'].PropTypes.bool,
@@ -45,7 +51,7 @@ var SectionsContainer = _react2['default'].createClass({
       activeSection: 0,
       scrollingStarted: false,
       sectionScrolledPosition: 0,
-      windowHeight: 500 // Set an initial height for server
+      windowHeight: 500
     };
   },
 
@@ -75,8 +81,22 @@ var SectionsContainer = _react2['default'].createClass({
     };
   },
 
+  shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
+    if (this.state.activeSection !== nextState.activeSection) {
+      return true;
+    }
+    if (this.state.windowHeight !== nextState.windowHeight) {
+      return true;
+    }
+
+    return false;
+  },
+
   componentWillUnmount: function componentWillUnmount() {
+    this._removeMouseWheelEventHandlers();
     window.removeEventListener('resize', this._handleResize);
+    window.removeEventListener('hashchange', this._handleAnchor, false);
+    window.removeEventListener('keydown', this._handleArrowKeys);
   },
 
   componentDidMount: function componentDidMount() {
@@ -85,6 +105,7 @@ var SectionsContainer = _react2['default'].createClass({
     if (!this.props.scrollBar) {
       this._addCSS3Scroll();
       this._handleAnchor(); //Go to anchor in case we found it in the URL
+      this.addTransitionEnd();
 
       window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
 
@@ -94,7 +115,7 @@ var SectionsContainer = _react2['default'].createClass({
     }
 
     // Get actual window height
-    this._handleResize();
+    if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
   },
 
   _addCSS3Scroll: function _addCSS3Scroll() {
@@ -112,8 +133,6 @@ var SectionsContainer = _react2['default'].createClass({
     for (var i = 0; i < activeLinks.length; i++) {
       activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ' : '') + ('' + this.props.activeClass);
     }
-
-    //console.log(allLinks);
   },
 
   _removeActiveClass: function _removeActiveClass() {
@@ -158,68 +177,122 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   _addMouseWheelEventHandlers: function _addMouseWheelEventHandlers() {
-    window.addEventListener('mousewheel', this._mouseWheelHandler, false);
-    window.addEventListener('DOMMouseScroll', this._mouseWheelHandler, false);
+    var prefix = '';
+    var _addEventListener;
+
+    if (window.addEventListener) {
+      _addEventListener = "addEventListener";
+    } else {
+      _addEventListener = "attachEvent";
+      prefix = 'on';
+    }
+
+    // detect available wheel event
+    var support = 'onwheel' in document.createElement('div') ? 'wheel' : // Modern browsers support "wheel"
+    document.onmousewheel !== undefined ? 'mousewheel' : // Webkit and IE support at least "mousewheel"
+    'DOMMouseScroll'; // let's assume that remaining browsers are older Firefox
+
+    if (support == 'DOMMouseScroll') {
+      document[_addEventListener](prefix + 'MozMousePixelScroll', this._mouseWheelHandler, false);
+    }
+
+    //handle MozMousePixelScroll in older Firefox
+    else {
+        document[_addEventListener](prefix + support, this._mouseWheelHandler, false);
+      }
   },
 
   _removeMouseWheelEventHandlers: function _removeMouseWheelEventHandlers() {
-    window.removeEventListener('mousewheel', this._mouseWheelHandler);
-    window.removeEventListener('DOMMouseScroll', this._mouseWheelHandler);
+    if (document.addEventListener) {
+      document.removeEventListener('mousewheel', this._mouseWheelHandler, false); //IE9, Chrome, Safari, Oper
+      document.removeEventListener('wheel', this._mouseWheelHandler, false); //Firefox
+      document.removeEventListener('MozMousePixelScroll', this._mouseWheelHandler, false); //old Firefox
+    } else {
+        document.detachEvent('onmousewheel', this._mouseWheelHandler); //IE 6/7/8
+      }
   },
 
-  _mouseWheelHandler: function _mouseWheelHandler() {
-    var _this = this;
+  _mouseWheelHandler: function _mouseWheelHandler(evt) {
+    var curTime = new Date().getTime();
+    var timeDiff = curTime - this.prevMouseWheelTime;
+    this.prevMouseWheelTime = curTime;
 
-    this._removeMouseWheelEventHandlers();
+    if (this.isScrolling) {
+      console.log('trapped');
+      return false;
+    }
 
-    var e = window.event || e; // old IE support
-    var delta = Math.max(-1, Math.min(1, e.wheelDelta || -e.detail));
-    var position = this.state.sectionScrolledPosition + delta * this.state.windowHeight;
-    var activeSection = this.state.activeSection - delta;
-    var maxPosition = 0 - this.props.children.length * this.state.windowHeight;
+    var e = evt || window.event; // old IE support
+    var delta = Math.max(-1, Math.min(1, e.wheelDelta || -e.deltaY || -e.detail));
 
-    if (position > 0 || maxPosition === position || this.state.scrollingStarted) {
-      return this._addMouseWheelEventHandlers();
+    if (timeDiff < 200) {
+      console.log('!time diff!');
+      return false;
+    }
+
+    var activeSection = this.state.activeSection;
+
+    if (delta < 0) {
+      activeSection++;
+    } else {
+      activeSection--;
+    }
+
+    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+      console.log('failed: ', activeSection);
+      return false;
     }
 
     var index = this.props.anchors[activeSection];
     if (!this.props.anchors.length || index) {
       window.location.hash = '#' + index;
+    } else {
+      this._goToSlide(activeSection);
     }
 
-    this.setState({
-      activeSection: activeSection,
-      scrollingStarted: true,
-      sectionScrolledPosition: position
-    });
+    return false;
+  },
 
-    setTimeout(function () {
-      _this.setState({
-        scrollingStarted: false
+  _handleResize: function _handleResize(initialResize) {
+    var position = 0;
+
+    if (initialResize) {
+      var index = this._getSectionIndexFromHash();
+      if (index < 0) index = this.state.activeSection;
+
+      position = 0 - index * window.innerHeight;
+      this.setState({
+        activeSection: index,
+        windowHeight: window.innerHeight,
+        sectionScrolledPosition: position
       });
-      _this._addMouseWheelEventHandlers();
-    }, this.props.delay + 300);
+    } else {
+      position = 0 - this.state.activeSection * window.innerHeight;
+      this.setState({
+        windowHeight: window.innerHeight,
+        sectionScrolledPosition: position
+      });
+    }
   },
 
-  _handleResize: function _handleResize() {
-    var position = 0 - this.state.activeSection * window.innerHeight;
-    this.setState({
-      windowHeight: window.innerHeight,
-      sectionScrolledPosition: position
-    });
-  },
-
-  _handleSectionTransition: function _handleSectionTransition(index) {
+  _goToSlide: function _goToSlide(index) {
     var position = 0 - index * this.state.windowHeight;
 
-    if (!this.props.anchors.length || index === -1 || index >= this.props.anchors.length) {
-      return false;
-    }
+    this.isScrolling = true;
+    this.newSection = true;
 
     this.setState({
       activeSection: index,
       sectionScrolledPosition: position
     });
+  },
+
+  _handleSectionTransition: function _handleSectionTransition(index) {
+    if (!this.props.anchors.length || index === -1 || index >= this.props.anchors.length) {
+      return false;
+    }
+
+    this._goToSlide(index);
   },
 
   _handleArrowKeys: function _handleArrowKeys(e) {
@@ -234,9 +307,14 @@ var SectionsContainer = _react2['default'].createClass({
     this._handleSectionTransition(direction);
   },
 
-  _handleAnchor: function _handleAnchor() {
+  _getSectionIndexFromHash: function _getSectionIndexFromHash() {
     var hash = window.location.hash.substring(1);
-    var index = this.props.anchors.indexOf(hash);
+    return this.props.anchors.indexOf(hash);
+  },
+
+  _handleAnchor: function _handleAnchor() {
+    var index = this._getSectionIndexFromHash();
+    if (index < 0) return false;
 
     this._handleSectionTransition(index);
 
@@ -244,7 +322,7 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   renderNavigation: function renderNavigation() {
-    var _this2 = this;
+    var _this = this;
 
     var navigationStyle = {
       position: 'fixed',
@@ -262,9 +340,9 @@ var SectionsContainer = _react2['default'].createClass({
         backgroundColor: '#556270',
         padding: '5px',
         transition: 'all 0.2s',
-        transform: _this2.state.activeSection === index ? 'scale(1.3)' : 'none'
+        transform: _this.state.activeSection === index ? 'scale(1.3)' : 'none'
       };
-      return _react2['default'].createElement('a', { href: '#' + link, key: index, className: _this2.props.navigationAnchorClass || 'Navigation-Anchor', style: _this2.props.navigationAnchorClass ? null : anchorStyle });
+      return _react2['default'].createElement('a', { href: '#' + link, key: index, className: _this.props.navigationAnchorClass || 'Navigation-Anchor', style: _this.props.navigationAnchorClass ? null : anchorStyle });
     });
 
     return _react2['default'].createElement(
@@ -272,6 +350,32 @@ var SectionsContainer = _react2['default'].createClass({
       { className: this.props.navigationClass || 'Navigation', style: this.props.navigationClass ? null : navigationStyle },
       anchors
     );
+  },
+  onTransitionEnd: function onTransitionEnd() {
+    if (this.newSection) {
+      console.log('...ON transition end...');
+      this.scrollId = null;
+      this.newSection = false;
+      this.isScrolling = false;
+      /*
+      clearTimeout(this.scrollId);
+      this.scrollId = setTimeout(() => {
+        console.log('...ON transition end...');
+        this.scrollId = null;
+        this.newSection = false;
+        this.isScrolling = false;
+        let index = this.props.anchors[this.state.activeSection];
+        if (!this.props.anchors.length || index) {
+          window.location.hash = '#' + index;
+        }
+      }, 100);
+      */
+    }
+  },
+
+  addTransitionEnd: function addTransitionEnd() {
+    var elm = _reactDom2['default'].findDOMNode(this.refs.sectionContainer);
+    elm.addEventListener('transitionend', this.onTransitionEnd);
   },
 
   render: function render() {
@@ -282,12 +386,13 @@ var SectionsContainer = _react2['default'].createClass({
       transform: 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
       transition: 'all ' + this.props.delay + 'ms ease'
     };
+    console.log('...render...');
     return _react2['default'].createElement(
       'div',
       null,
       _react2['default'].createElement(
         'div',
-        { className: this.props.className, style: containerStyle },
+        { ref: 'sectionContainer', className: this.props.className, style: containerStyle },
         this.props.scrollBar ? this._addChildrenWithAnchorId() : this.props.children
       ),
       this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null
