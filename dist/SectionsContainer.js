@@ -66,18 +66,7 @@ var SectionsContainer = _react2['default'].createClass({
     };
   },
 
-  shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
-    if (this.state.activeSection !== nextState.activeSection) {
-      return true;
-    }
-    if (this.state.windowHeight !== nextState.windowHeight) {
-      return true;
-    }
-
-    return false;
-  },
-
-  componentDidUpdate: function componentDidUpdate() {},
+  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
 
   componentWillUnmount: function componentWillUnmount() {
     this._removeMouseWheelEventHandlers();
@@ -250,6 +239,8 @@ var SectionsContainer = _react2['default'].createClass({
         return false;
       }
 
+      this._callOnLeave(activeSection);
+
       var index = this.props.anchors[activeSection];
       if (!this.props.anchors.length || index) {
         // let the hash listener catch this
@@ -260,6 +251,12 @@ var SectionsContainer = _react2['default'].createClass({
     }
 
     return false;
+  },
+
+  _callOnLeave: function _callOnLeave(goingToIndex) {
+    if (typeof this.props.onLeave === 'function') {
+      this.props.onLeave(this.state.activeSection, goingToIndex);
+    }
   },
 
   _getAverage: function _getAverage(elements, number) {
@@ -335,11 +332,13 @@ var SectionsContainer = _react2['default'].createClass({
     var direction = event.keyCode === 38 || event.keyCode === 37 ? this.state.activeSection - 1 : event.keyCode === 40 || event.keyCode === 39 ? this.state.activeSection + 1 : -1;
     var hash = this.props.anchors[direction];
 
+    this._callOnLeave(direction);
+
     if (!this.props.anchors.length || hash) {
       window.location.hash = '#' + hash;
+    } else {
+      this._handleSectionTransition(direction);
     }
-
-    this._handleSectionTransition(direction);
   },
 
   _getSectionIndexFromHash: function _getSectionIndexFromHash() {
@@ -391,6 +390,9 @@ var SectionsContainer = _react2['default'].createClass({
     this.isScrolling = false;
     if (this.newSection) {
       this.newSection = false;
+      if (typeof this.props.afterLoad === 'function') {
+        this.props.afterLoad(this.state.activeSection);
+      }
     }
   },
 

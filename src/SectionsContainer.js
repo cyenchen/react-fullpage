@@ -51,18 +51,7 @@ const SectionsContainer = React.createClass({
     };
   },
 
-  shouldComponentUpdate(nextProps, nextState) {
-    if (this.state.activeSection !== nextState.activeSection) {
-      return true;
-    }
-    if (this.state.windowHeight !== nextState.windowHeight) {
-      return true;
-    }
-
-    return false;
-  },
-
-  componentDidUpdate() {},
+  componentDidUpdate(prevProps, prevState) {},
 
   componentWillUnmount() {
     this._removeMouseWheelEventHandlers();
@@ -235,6 +224,8 @@ const SectionsContainer = React.createClass({
         return false;
       }
 
+      this._callOnLeave(activeSection);
+
       let index = this.props.anchors[activeSection];
       if (!this.props.anchors.length || index) {  // let the hash listener catch this
         window.location.hash = '#' + index;
@@ -244,6 +235,12 @@ const SectionsContainer = React.createClass({
     }
 
     return false;
+  },
+
+  _callOnLeave(goingToIndex) {
+    if (typeof this.props.onLeave === 'function') {
+      this.props.onLeave(this.state.activeSection, goingToIndex);
+    }
   },
 
   _getAverage(elements, number) {
@@ -319,11 +316,13 @@ const SectionsContainer = React.createClass({
     let direction = event.keyCode === 38 || event.keyCode === 37 ? this.state.activeSection - 1 : (event.keyCode === 40 || event.keyCode === 39 ? this.state.activeSection + 1 : -1);
     let hash      = this.props.anchors[direction];
 
+    this._callOnLeave(direction);
+
     if (!this.props.anchors.length || hash) {
       window.location.hash = '#' + hash;
+    } else {
+      this._handleSectionTransition(direction);
     }
-
-    this._handleSectionTransition(direction);
   },
 
   _getSectionIndexFromHash() {
@@ -373,6 +372,9 @@ const SectionsContainer = React.createClass({
     this.isScrolling = false;
     if (this.newSection) {
       this.newSection = false;
+      if (typeof this.props.afterLoad === 'function') {
+        this.props.afterLoad(this.state.activeSection);
+      }
     }
   },
 
