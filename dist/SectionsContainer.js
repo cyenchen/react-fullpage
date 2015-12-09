@@ -316,7 +316,11 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   _goToSection: function _goToSection(index) {
+    if (index === this.state.activeSection) return;
+
     var position = this._getPosition(index);
+
+    this._callOnLeave(index);
 
     this.setState({
       activeSection: index,

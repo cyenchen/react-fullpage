@@ -300,7 +300,11 @@ const SectionsContainer = React.createClass({
   },
 
   _goToSection(index) {
+    if (index === this.state.activeSection) return;
+
     const position = this._getPosition(index);
+
+    this._callOnLeave(index);
 
     this.setState({
       activeSection: index,
