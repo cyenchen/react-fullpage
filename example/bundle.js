@@ -20238,7 +20238,10 @@
 	      height: '100%',
 	      width: '100%',
 	      position: 'relative',
-	      transform: 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
+	      '-webkit-transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
+	      '-moz-transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
+	      '-ms-transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
+	      'transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
 	      transition: 'all ' + this.props.delay + 'ms ease'
 	    };
 
