@@ -66,6 +66,12 @@ var SectionsContainer = _react2['default'].createClass({
     };
   },
 
+  componentWillUpdate: function componentWillUpdate(nextProps, nextState) {
+    if (this.state.activeSection !== nextState.activeSection) {
+      this.newSection = true;
+    }
+  },
+
   componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
 
   componentWillUnmount: function componentWillUnmount() {
@@ -219,7 +225,7 @@ var SectionsContainer = _react2['default'].createClass({
 
     var activeSection = this.state.activeSection;
 
-    if (this.isScrolling) {
+    if (this.isScrolling || this.newSection) {
       return false;
     }
 
@@ -246,6 +252,7 @@ var SectionsContainer = _react2['default'].createClass({
         // let the hash listener catch this
         window.location.hash = '#' + index;
       } else {
+        console.log('GO TO SECTION: ', activeSection);
         this._goToSection(activeSection);
       }
     }
@@ -310,8 +317,6 @@ var SectionsContainer = _react2['default'].createClass({
 
   _goToSection: function _goToSection(index) {
     var position = this._getPosition(index);
-
-    this.newSection = true;
 
     this.setState({
       activeSection: index,
@@ -410,7 +415,7 @@ var SectionsContainer = _react2['default'].createClass({
       transition: 'all ' + this.props.delay + 'ms ease'
     };
 
-    this.isScrolling = true;
+    this.isScrolling = this.newSection;
     return _react2['default'].createElement(
       'div',
       null,

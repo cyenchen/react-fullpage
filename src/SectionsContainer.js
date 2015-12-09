@@ -51,6 +51,12 @@ const SectionsContainer = React.createClass({
     };
   },
 
+  componentWillUpdate(nextProps, nextState) {
+    if (this.state.activeSection !== nextState.activeSection) {
+      this.newSection = true;
+    }
+  },
+
   componentDidUpdate(prevProps, prevState) {},
 
   componentWillUnmount() {
@@ -204,7 +210,7 @@ const SectionsContainer = React.createClass({
 
     let activeSection = this.state.activeSection;
 
-    if (this.isScrolling) {
+    if (this.isScrolling || this.newSection) {
       return false;
     }
 
@@ -230,6 +236,7 @@ const SectionsContainer = React.createClass({
       if (!this.props.anchors.length || index) {  // let the hash listener catch this
         window.location.hash = '#' + index;
       } else {
+        console.log('GO TO SECTION: ', activeSection);
         this._goToSection(activeSection);
       }
     }
@@ -294,8 +301,6 @@ const SectionsContainer = React.createClass({
 
   _goToSection(index) {
     const position = this._getPosition(index);
-
-    this.newSection = true;
 
     this.setState({
       activeSection: index,
@@ -392,7 +397,7 @@ const SectionsContainer = React.createClass({
       transition: `all ${this.props.delay}ms ease`,
     };
 
-    this.isScrolling = true;
+    this.isScrolling = this.newSection;
     return (
       <div>
         <div ref='sectionContainer' className={this.props.className} style={containerStyle}>

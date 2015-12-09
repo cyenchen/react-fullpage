@@ -19844,6 +19844,11 @@
 	var SectionsContainer = _react2['default'].createClass({
 	  displayName: 'SectionsContainer',
 
+	  isScrolling: false,
+	  newSection: false,
+	  scrollings: [],
+	  prevMouseWheelTime: new Date().getTime(),
+
 	  propTypes: {
 	    delay: _react2['default'].PropTypes.number,
 	    verticalAlign: _react2['default'].PropTypes.bool,
@@ -19856,15 +19861,10 @@
 	    activeClass: _react2['default'].PropTypes.string,
 	    sectionPaddingTop: _react2['default'].PropTypes.string,
 	    sectionPaddingBottom: _react2['default'].PropTypes.string,
-	    arrowNavigation: _react2['default'].PropTypes.bool
-	  },
+	    arrowNavigation: _react2['default'].PropTypes.bool,
+	    anchors: _react2['default'].PropTypes.array,
+	    autoFooterHeight: _react2['default'].PropTypes.bool
 
-	  childContextTypes: {
-	    verticalAlign: _react2['default'].PropTypes.bool,
-	    sectionClassName: _react2['default'].PropTypes.string,
-	    sectionPaddingTop: _react2['default'].PropTypes.string,
-	    sectionPaddingBottom: _react2['default'].PropTypes.string,
-	    windowHeight: _react2['default'].PropTypes.number
 	  },
 
 	  getInitialState: function getInitialState() {
@@ -19872,7 +19872,7 @@
 	      activeSection: 0,
 	      scrollingStarted: false,
 	      sectionScrolledPosition: 0,
-	      windowHeight: 500 // Set an initial height for server
+	      windowHeight: 500
 	    };
 	  },
 
@@ -19885,6 +19885,7 @@
 	      className: 'SectionContainer',
 	      sectionClassName: 'Section',
 	      anchors: [],
+	      autoFooterHeight: false,
 	      activeClass: 'active',
 	      sectionPaddingTop: '0',
 	      sectionPaddingBottom: '0',
@@ -19892,18 +19893,19 @@
 	    };
 	  },
 
-	  getChildContext: function getChildContext() {
-	    return {
-	      verticalAlign: this.props.verticalAlign,
-	      sectionClassName: this.props.sectionClassName,
-	      sectionPaddingTop: this.props.sectionPaddingTop,
-	      sectionPaddingBottom: this.props.sectionPaddingBottom,
-	      windowHeight: this.state.windowHeight
-	    };
+	  componentWillUpdate: function componentWillUpdate(nextProps, nextState) {
+	    if (this.state.activeSection !== nextState.activeSection) {
+	      this.newSection = true;
+	    }
 	  },
 
+	  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
+
 	  componentWillUnmount: function componentWillUnmount() {
+	    this._removeMouseWheelEventHandlers();
 	    window.removeEventListener('resize', this._handleResize);
+	    window.removeEventListener('hashchange', this._handleAnchor, false);
+	    window.removeEventListener('keydown', this._handleArrowKeys);
 	  },
 
 	  componentDidMount: function componentDidMount() {
@@ -19912,6 +19914,7 @@
 	    if (!this.props.scrollBar) {
 	      this._addCSS3Scroll();
 	      this._handleAnchor(); //Go to anchor in case we found it in the URL
+	      this.addTransitionEnd();
 
 	      window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
 
@@ -19921,7 +19924,7 @@
 	    }
 
 	    // Get actual window height
-	    this._handleResize();
+	    if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
 	  },
 
 	  _addCSS3Scroll: function _addCSS3Scroll() {
@@ -19939,8 +19942,6 @@
 	    for (var i = 0; i < activeLinks.length; i++) {
 	      activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ' : '') + ('' + this.props.activeClass);
 	    }
-
-	    //console.log(allLinks);
 	  },
 
 	  _removeActiveClass: function _removeActiveClass() {
@@ -19951,14 +19952,21 @@
 	    }
 	  },
 
-	  _addChildrenWithAnchorId: function _addChildrenWithAnchorId() {
-	    var index = 0;
-	    return _react2['default'].Children.map(this.props.children, (function (child) {
-	      var id = this.props.anchors[index];
-	      index++;
-	      if (id) {
+	  _addChildren: function _addChildren() {
+	    var _this = this;
+
+	    return _react2['default'].Children.map(this.props.children, (function (child, index) {
+	      var ref = _this.props.anchors[index] || 'section-' + index;
+	      var domId = _this.props.anchors[index] || null;
+	      if (ref) {
 	        return _react2['default'].cloneElement(child, {
-	          id: id
+	          ref: ref,
+	          id: _this.props.scrollBar ? domId : null,
+	          windowHeight: _this.state.windowHeight,
+	          verticalAlign: _this.props.verticalAlign,
+	          sectionClassName: _this.props.sectionClassName,
+	          sectionPaddingTop: _this.props.sectionPaddingTop,
+	          sectionPaddingBottom: _this.props.sectionPaddingBottom
 	        });
 	      } else {
 	        return child;
@@ -19985,63 +19993,157 @@
 	  },
 
 	  _addMouseWheelEventHandlers: function _addMouseWheelEventHandlers() {
-	    window.addEventListener('mousewheel', this._mouseWheelHandler, false);
-	    window.addEventListener('DOMMouseScroll', this._mouseWheelHandler, false);
+	    var prefix = '';
+	    var _addEventListener;
+
+	    if (window.addEventListener) {
+	      _addEventListener = "addEventListener";
+	    } else {
+	      _addEventListener = "attachEvent";
+	      prefix = 'on';
+	    }
+
+	    // detect available wheel event
+	    var support = 'onwheel' in document.createElement('div') ? 'wheel' : // Modern browsers support "wheel"
+	    document.onmousewheel !== undefined ? 'mousewheel' : // Webkit and IE support at least "mousewheel"
+	    'DOMMouseScroll'; // let's assume that remaining browsers are older Firefox
+
+	    if (support == 'DOMMouseScroll') {
+	      document[_addEventListener](prefix + 'MozMousePixelScroll', this._mouseWheelHandler, false);
+	    }
+
+	    //handle MozMousePixelScroll in older Firefox
+	    else {
+	        document[_addEventListener](prefix + support, this._mouseWheelHandler, false);
+	      }
 	  },
 
 	  _removeMouseWheelEventHandlers: function _removeMouseWheelEventHandlers() {
-	    window.removeEventListener('mousewheel', this._mouseWheelHandler);
-	    window.removeEventListener('DOMMouseScroll', this._mouseWheelHandler);
+	    if (document.addEventListener) {
+	      document.removeEventListener('mousewheel', this._mouseWheelHandler, false); //IE9, Chrome, Safari, Oper
+	      document.removeEventListener('wheel', this._mouseWheelHandler, false); //Firefox
+	      document.removeEventListener('MozMousePixelScroll', this._mouseWheelHandler, false); //old Firefox
+	    } else {
+	        document.detachEvent('onmousewheel', this._mouseWheelHandler); //IE 6/7/8
+	      }
 	  },
 
-	  _mouseWheelHandler: function _mouseWheelHandler() {
-	    var _this = this;
+	  _mouseWheelHandler: function _mouseWheelHandler(evt) {
+	    var curTime = new Date().getTime();
+	    var timeDiff = curTime - this.prevMouseWheelTime;
+	    this.prevMouseWheelTime = curTime;
 
-	    this._removeMouseWheelEventHandlers();
+	    var e = window.event || evt; // old IE support
+	    var value = e.wheelDelta || -e.deltaY || -e.detail;
+	    var delta = Math.max(-1, Math.min(1, value));
+	    var horizontalDetection = typeof e.wheelDeltaX !== 'undefined' || typeof e.deltaX !== 'undefined';
+	    var isScrollingVertically = Math.abs(e.wheelDeltaX) < Math.abs(e.wheelDelta) || Math.abs(e.deltaX) < Math.abs(e.deltaY) || !horizontalDetection;
 
-	    var e = window.event || e; // old IE support
-	    var delta = Math.max(-1, Math.min(1, e.wheelDelta || -e.detail));
-	    var position = this.state.sectionScrolledPosition + delta * this.state.windowHeight;
-	    var activeSection = this.state.activeSection - delta;
-	    var maxPosition = 0 - this.props.children.length * this.state.windowHeight;
-
-	    if (position > 0 || maxPosition === position || this.state.scrollingStarted) {
-	      return this._addMouseWheelEventHandlers();
+	    if (this.scrollings.length > 149) {
+	      this.scrollings.shift();
 	    }
 
-	    var index = this.props.anchors[activeSection];
-	    if (!this.props.anchors.length || index) {
-	      window.location.hash = '#' + index;
+	    this.scrollings.push(Math.abs(value));
+
+	    if (timeDiff > 200) {
+	      //emptying the array, we dont care about old scrollings for our averages
+	      this.scrollings = [];
 	    }
 
-	    this.setState({
-	      activeSection: activeSection,
-	      scrollingStarted: true,
-	      sectionScrolledPosition: position
-	    });
+	    var activeSection = this.state.activeSection;
 
-	    setTimeout(function () {
-	      _this.setState({
-	        scrollingStarted: false
-	      });
-	      _this._addMouseWheelEventHandlers();
-	    }, this.props.delay + 300);
-	  },
-
-	  _handleResize: function _handleResize() {
-	    var position = 0 - this.state.activeSection * window.innerHeight;
-	    this.setState({
-	      windowHeight: window.innerHeight,
-	      sectionScrolledPosition: position
-	    });
-	  },
-
-	  _handleSectionTransition: function _handleSectionTransition(index) {
-	    var position = 0 - index * this.state.windowHeight;
-
-	    if (!this.props.anchors.length || index === -1 || index >= this.props.anchors.length) {
+	    if (this.isScrolling || this.newSection) {
 	      return false;
 	    }
+
+	    var averageEnd = this._getAverage(this.scrollings, 10);
+	    var averageMiddle = this._getAverage(this.scrollings, 70);
+	    var isAccelerating = averageEnd >= averageMiddle;
+
+	    if (isAccelerating && isScrollingVertically) {
+	      if (delta < 0) {
+	        activeSection++;
+	      } else {
+	        activeSection--;
+	      }
+
+	      if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+	        console.log('failed: ', activeSection);
+	        return false;
+	      }
+
+	      this._callOnLeave(activeSection);
+
+	      var index = this.props.anchors[activeSection];
+	      if (!this.props.anchors.length || index) {
+	        // let the hash listener catch this
+	        window.location.hash = '#' + index;
+	      } else {
+	        console.log('GO TO SECTION: ', activeSection);
+	        this._goToSection(activeSection);
+	      }
+	    }
+
+	    return false;
+	  },
+
+	  _callOnLeave: function _callOnLeave(goingToIndex) {
+	    if (typeof this.props.onLeave === 'function') {
+	      this.props.onLeave(this.state.activeSection, goingToIndex);
+	    }
+	  },
+
+	  _getAverage: function _getAverage(elements, number) {
+	    var sum = 0;
+
+	    //taking `number` elements from the end to make the average, if there are not enought, 1
+	    var lastElements = elements.slice(Math.max(elements.length - number, 1));
+
+	    for (var i = 0; i < lastElements.length; i++) {
+	      sum = sum + lastElements[i];
+	    }
+
+	    return Math.ceil(sum / number);
+	  },
+
+	  _handleResize: function _handleResize(initialResize) {
+	    var position = 0;
+	    var index = this.state.activeSection;
+
+	    var state = {
+	      windowHeight: window.innerHeight
+	    };
+
+	    if (initialResize) {
+	      index = this._getSectionIndexFromHash();
+	      if (index < 0) index = this.state.activeSection;
+	      state.activeSection = index;
+	    }
+
+	    state.sectionScrolledPosition = this._getPosition(index, state.windowHeight);
+	    this.setState(state);
+	  },
+
+	  _getPosition: function _getPosition(index, windowHeight) {
+	    windowHeight = windowHeight || this.state.windowHeight;
+
+	    var position = 0 - index * windowHeight;
+
+	    if (this.props.anchors[index] === 'footer' && this.props.autoFooterHeight && this.refs.footer) {
+	      var elm = _reactDom2['default'].findDOMNode(this.refs.footer);
+
+	      elm.style.height = 'auto';
+	      var height = elm.offsetHeight;
+	      elm.style.height = windowHeight;
+
+	      position = 0 - ((index - 1) * windowHeight + height);
+	    }
+
+	    return position;
+	  },
+
+	  _goToSection: function _goToSection(index) {
+	    var position = this._getPosition(index);
 
 	    this.setState({
 	      activeSection: index,
@@ -20049,21 +20151,36 @@
 	    });
 	  },
 
+	  _handleSectionTransition: function _handleSectionTransition(index) {
+	    if (!this.props.anchors.length || index === -1 || index >= this.props.anchors.length) {
+	      return false;
+	    }
+
+	    this._goToSection(index);
+	  },
+
 	  _handleArrowKeys: function _handleArrowKeys(e) {
 	    var event = window.event ? window.event : e;
 	    var direction = event.keyCode === 38 || event.keyCode === 37 ? this.state.activeSection - 1 : event.keyCode === 40 || event.keyCode === 39 ? this.state.activeSection + 1 : -1;
 	    var hash = this.props.anchors[direction];
 
+	    this._callOnLeave(direction);
+
 	    if (!this.props.anchors.length || hash) {
 	      window.location.hash = '#' + hash;
+	    } else {
+	      this._handleSectionTransition(direction);
 	    }
+	  },
 
-	    this._handleSectionTransition(direction);
+	  _getSectionIndexFromHash: function _getSectionIndexFromHash() {
+	    var hash = window.location.hash.substring(1);
+	    return this.props.anchors.indexOf(hash);
 	  },
 
 	  _handleAnchor: function _handleAnchor() {
-	    var hash = window.location.hash.substring(1);
-	    var index = this.props.anchors.indexOf(hash);
+	    var index = this._getSectionIndexFromHash();
+	    if (index < 0) return false;
 
 	    this._handleSectionTransition(index);
 
@@ -20097,6 +20214,21 @@
 	    return _react2['default'].createElement('div', { className: this.props.navigationClass || 'Navigation', style: this.props.navigationClass ? null : navigationStyle }, anchors);
 	  },
 
+	  onTransitionEnd: function onTransitionEnd() {
+	    this.isScrolling = false;
+	    if (this.newSection) {
+	      this.newSection = false;
+	      if (typeof this.props.afterLoad === 'function') {
+	        this.props.afterLoad(this.state.activeSection);
+	      }
+	    }
+	  },
+
+	  addTransitionEnd: function addTransitionEnd() {
+	    var elm = _reactDom2['default'].findDOMNode(this.refs.sectionContainer);
+	    elm.addEventListener('transitionend', this.onTransitionEnd);
+	  },
+
 	  render: function render() {
 	    var containerStyle = {
 	      height: '100%',
@@ -20105,7 +20237,9 @@
 	      transform: 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
 	      transition: 'all ' + this.props.delay + 'ms ease'
 	    };
-	    return _react2['default'].createElement('div', null, _react2['default'].createElement('div', { className: this.props.className, style: containerStyle }, this.props.scrollBar ? this._addChildrenWithAnchorId() : this.props.children), this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null);
+
+	    this.isScrolling = this.newSection;
+	    return _react2['default'].createElement('div', null, _react2['default'].createElement('div', { ref: 'sectionContainer', className: this.props.className, style: containerStyle }, this._addChildren()), this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null);
 	  }
 
 	});
@@ -20138,14 +20272,6 @@
 	    color: _react2['default'].PropTypes.string
 	  },
 
-	  contextTypes: {
-	    verticalAlign: _react2['default'].PropTypes.bool,
-	    sectionClassName: _react2['default'].PropTypes.string,
-	    sectionPaddingTop: _react2['default'].PropTypes.string,
-	    sectionPaddingBottom: _react2['default'].PropTypes.string,
-	    windowHeight: _react2['default'].PropTypes.number
-	  },
-
 	  getInitialState: function getInitialState() {
 	    return {};
 	  },
@@ -20154,21 +20280,23 @@
 
 	  componentWillUnmount: function componentWillUnmount() {},
 
+	  componentDidUpdate: function componentDidUpdate() {},
+
 	  render: function render() {
-	    var alignVertical = this.props.verticalAlign || this.context.verticalAlign;
+	    var alignVertical = this.props.verticalAlign;
 
 	    var sectionStyle = {
 	      width: '100%',
 	      display: alignVertical ? 'table' : 'block',
-	      height: this.context.windowHeight,
-	      maxHeight: this.context.windowHeight,
+	      height: this.props.windowHeight,
+	      maxHeight: this.props.windowHeight,
 	      overflow: 'scroll',
 	      backgroundColor: this.props.color,
-	      paddingTop: this.context.sectionPaddingTop,
-	      paddingBottom: this.context.sectionPaddingBottom
+	      paddingTop: this.props.sectionPaddingTop,
+	      paddingBottom: this.props.sectionPaddingBottom
 	    };
 
-	    return _react2['default'].createElement('div', { className: this.context.sectionClassName + (this.props.className ? ' ' + this.props.className : ''), id: this.props.id, style: sectionStyle }, alignVertical ? this._renderVerticalAlign() : this.props.children);
+	    return _react2['default'].createElement('div', { className: this.props.sectionClassName + (this.props.className ? ' ' + this.props.className : ''), id: this.props.id, style: sectionStyle }, alignVertical ? this._renderVerticalAlign() : this.props.children);
 	  },
 
 	  _renderVerticalAlign: function _renderVerticalAlign() {
