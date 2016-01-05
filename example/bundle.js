@@ -20165,7 +20165,10 @@
 
 	  _handleArrowKeys: function _handleArrowKeys(e) {
 	    var event = window.event ? window.event : e;
-	    var direction = event.keyCode === 38 || event.keyCode === 37 ? this.state.activeSection - 1 : event.keyCode === 40 || event.keyCode === 39 ? this.state.activeSection + 1 : -1;
+	    var code = event.keyCode;
+	    if (code < 37 || code > 40) return;
+
+	    var direction = code === 38 || code === 37 ? this.state.activeSection - 1 : code === 40 || code === 39 ? this.state.activeSection + 1 : -1;
 	    var hash = this.props.anchors[direction];
 
 	    this._callOnLeave(direction);
