@@ -14,6 +14,8 @@ var _reactDom = require('react-dom');
 
 var _reactDom2 = _interopRequireDefault(_reactDom);
 
+var _Utils = require('./Utils');
+
 var SectionsContainer = _react2['default'].createClass({
   displayName: 'SectionsContainer',
 
@@ -36,7 +38,8 @@ var SectionsContainer = _react2['default'].createClass({
     sectionPaddingBottom: _react2['default'].PropTypes.string,
     arrowNavigation: _react2['default'].PropTypes.bool,
     anchors: _react2['default'].PropTypes.array,
-    autoFooterHeight: _react2['default'].PropTypes.bool
+    autoFooterHeight: _react2['default'].PropTypes.bool,
+    css3: _react2['default'].PropTypes.bool
 
   },
 
@@ -62,7 +65,8 @@ var SectionsContainer = _react2['default'].createClass({
       activeClass: 'active',
       sectionPaddingTop: '0',
       sectionPaddingBottom: '0',
-      arrowNavigation: true
+      arrowNavigation: true,
+      css3: true
     };
   },
 
@@ -74,14 +78,14 @@ var SectionsContainer = _react2['default'].createClass({
 
   componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
 
-  componentWillUnmount: function componentWillUnmount() {
-    this._removeMouseWheelEventHandlers();
-    window.removeEventListener('resize', this._handleResize);
-    window.removeEventListener('hashchange', this._handleAnchor, false);
-    window.removeEventListener('keydown', this._handleArrowKeys);
-  },
+  componentWillMount: function componentWillMount() {},
 
   componentDidMount: function componentDidMount() {
+    var css3 = this.props.css3;
+
+    this.useCSS3 = css3 ? this.support3d() : false;
+    if (!this.useCSS3) (0, _Utils.requestAni)();
+
     window.addEventListener('resize', this._handleResize);
 
     if (!this.props.scrollBar) {
@@ -98,6 +102,14 @@ var SectionsContainer = _react2['default'].createClass({
 
     // Get actual window height
     if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
+  },
+
+  componentWillUnmount: function componentWillUnmount() {
+    this._removeMouseWheelEventHandlers();
+    this.removeTransitionEnd();
+    window.removeEventListener('resize', this._handleResize);
+    window.removeEventListener('hashchange', this._handleAnchor, false);
+    window.removeEventListener('keydown', this._handleArrowKeys);
   },
 
   _addCSS3Scroll: function _addCSS3Scroll() {
@@ -131,11 +143,15 @@ var SectionsContainer = _react2['default'].createClass({
     return _react2['default'].Children.map(this.props.children, (function (child, index) {
       var ref = _this.props.anchors[index] || 'section-' + index;
       var domId = _this.props.anchors[index] || null;
+      var height = _this.state.windowHeight;
+      if (_this.props.anchors[index] === 'footer' && _this.props.autoFooterHeight && _this.props.scrollBar) {
+        height = 'auto';
+      }
       if (ref) {
         return _react2['default'].cloneElement(child, {
           ref: ref,
           id: _this.props.scrollBar ? domId : null,
-          windowHeight: _this.state.windowHeight,
+          windowHeight: height,
           verticalAlign: _this.props.verticalAlign,
           sectionClassName: _this.props.sectionClassName,
           sectionPaddingTop: _this.props.sectionPaddingTop,
@@ -225,7 +241,7 @@ var SectionsContainer = _react2['default'].createClass({
 
     var activeSection = this.state.activeSection;
 
-    if (this.isScrolling || this.newSection) {
+    if (this.isScrolling || this.newSection || this.animating) {
       return false;
     }
 
@@ -245,7 +261,7 @@ var SectionsContainer = _react2['default'].createClass({
         return false;
       }
 
-      this._callOnLeave(activeSection);
+      // this._callOnLeave(activeSection);
 
       var index = this.props.anchors[activeSection];
       if (!this.props.anchors.length || index) {
@@ -408,9 +424,66 @@ var SectionsContainer = _react2['default'].createClass({
     }
   },
 
+  removeTransitionEnd: function removeTransitionEnd() {
+    var elm = _reactDom2['default'].findDOMNode(this.refs.sectionContainer);
+    if (elm) elm.removeEventListener('transitionend', this.onTransitionEnd);
+  },
+
   addTransitionEnd: function addTransitionEnd() {
     var elm = _reactDom2['default'].findDOMNode(this.refs.sectionContainer);
     elm.addEventListener('transitionend', this.onTransitionEnd);
+  },
+
+  setTransforms: function setTransforms(styles) {
+    var _this3 = this;
+
+    if (this.props.scrollBar) return;
+    if (!this.refs.sectionContainer) return;
+
+    if (this.useCSS3) {
+      var movement = 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)';
+      styles.WebkitTransform = styles.MozTransform = styles.msTransform = styles.transform = movement;
+      styles.transition = 'all ' + this.props.delay + 'ms ease';
+    } else if (!this.animating) {
+      var from = this.refs.sectionContainer.offsetTop;
+      var to = this.state.sectionScrolledPosition;
+
+      if (from == to) return;
+
+      this.animating = true;
+      (0, _Utils.animate)(from, this.state.sectionScrolledPosition, this.props.delay, function (d) {
+        _this3.refs.sectionContainer.style.top = d + 'px';
+      }, 'easeInOutCubic', function () {
+        _this3.animating = false;
+        _this3.onTransitionEnd();
+      });
+    }
+  },
+
+  support3d: function support3d() {
+    var has3d = undefined;
+    var el = document.createElement('p');
+    var transforms = {
+      'webkitTransform': '-webkit-transform',
+      'OTransform': '-o-transform',
+      'msTransform': '-ms-transform',
+      'MozTransform': '-moz-transform',
+      'transform': 'transform'
+    };
+
+    // Add it to the body to get the computed style.
+    document.body.insertBefore(el, null);
+
+    for (var t in transforms) {
+      if (el.style[t] !== undefined) {
+        el.style[t] = 'translate3d(1px,1px,1px)';
+        has3d = window.getComputedStyle(el).getPropertyValue(transforms[t]);
+      }
+    }
+
+    document.body.removeChild(el);
+
+    return has3d !== undefined && has3d.length > 0 && has3d !== 'none';
   },
 
   render: function render() {
@@ -418,12 +491,15 @@ var SectionsContainer = _react2['default'].createClass({
       height: '100%',
       width: '100%',
       position: 'relative',
-      'WebkitTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      'MozTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      'msTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      'transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      transition: 'all ' + this.props.delay + 'ms ease'
+      'msTouchAction': 'none',
+      'touchAction': 'none'
     };
+
+    this.setTransforms(containerStyle);
+
+    if (this.props.scrollBar) {
+      containerStyle.msTouchAction = containerStyle.touchAction = '';
+    }
 
     this.isScrolling = this.newSection;
     return _react2['default'].createElement(

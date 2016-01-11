@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import {requestAni, animate} from './Utils';
 
 const SectionsContainer = React.createClass({
   isScrolling: false,
@@ -21,7 +22,8 @@ const SectionsContainer = React.createClass({
     sectionPaddingBottom:   React.PropTypes.string,
     arrowNavigation:        React.PropTypes.bool,
     anchors:                React.PropTypes.array,
-    autoFooterHeight:       React.PropTypes.bool
+    autoFooterHeight:       React.PropTypes.bool,
+    css3:                   React.PropTypes.bool
 
   },
 
@@ -47,7 +49,8 @@ const SectionsContainer = React.createClass({
       activeClass:          'active',
       sectionPaddingTop:    '0',
       sectionPaddingBottom: '0',
-      arrowNavigation:      true
+      arrowNavigation:      true,
+      css3:                 true
     };
   },
 
@@ -59,14 +62,13 @@ const SectionsContainer = React.createClass({
 
   componentDidUpdate(prevProps, prevState) {},
 
-  componentWillUnmount() {
-    this._removeMouseWheelEventHandlers();
-    window.removeEventListener('resize', this._handleResize);
-    window.removeEventListener('hashchange', this._handleAnchor, false);
-    window.removeEventListener('keydown', this._handleArrowKeys);
-  },
+  componentWillMount() {},
 
   componentDidMount() {
+    const {css3} = this.props;
+    this.useCSS3 = (css3) ? this.support3d() : false;
+    if (!this.useCSS3) requestAni();
+
     window.addEventListener('resize', this._handleResize);
 
     if (!this.props.scrollBar) {
@@ -84,6 +86,14 @@ const SectionsContainer = React.createClass({
 
     // Get actual window height
     if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
+  },
+
+  componentWillUnmount() {
+    this._removeMouseWheelEventHandlers();
+    this.removeTransitionEnd();
+    window.removeEventListener('resize', this._handleResize);
+    window.removeEventListener('hashchange', this._handleAnchor, false);
+    window.removeEventListener('keydown', this._handleArrowKeys);
   },
 
   _addCSS3Scroll() {
@@ -115,11 +125,15 @@ const SectionsContainer = React.createClass({
     return React.Children.map(this.props.children, (child, index) => {
       const ref = this.props.anchors[index] || ('section-' + index);
       const domId = this.props.anchors[index] || null;
+      let height = this.state.windowHeight;
+      if (this.props.anchors[index] === 'footer' && this.props.autoFooterHeight && this.props.scrollBar) {
+        height = 'auto';
+      }
       if (ref) {
         return React.cloneElement(child, {
           ref: ref,
           id: this.props.scrollBar ? domId : null,
-          windowHeight:           this.state.windowHeight,
+          windowHeight:           height,
           verticalAlign:          this.props.verticalAlign,
           sectionClassName:       this.props.sectionClassName,
           sectionPaddingTop:      this.props.sectionPaddingTop,
@@ -210,7 +224,7 @@ const SectionsContainer = React.createClass({
 
     let activeSection = this.state.activeSection;
 
-    if (this.isScrolling || this.newSection) {
+    if (this.isScrolling || this.newSection || this.animating) {
       return false;
     }
 
@@ -230,7 +244,7 @@ const SectionsContainer = React.createClass({
         return false;
       }
 
-      this._callOnLeave(activeSection);
+      // this._callOnLeave(activeSection);
 
       let index = this.props.anchors[activeSection];
       if (!this.props.anchors.length || index) {  // let the hash listener catch this
@@ -390,9 +404,64 @@ const SectionsContainer = React.createClass({
     }
   },
 
+  removeTransitionEnd() {
+    const elm = ReactDOM.findDOMNode(this.refs.sectionContainer);
+    if(elm) elm.removeEventListener('transitionend', this.onTransitionEnd);
+  },
+
   addTransitionEnd() {
     const elm = ReactDOM.findDOMNode(this.refs.sectionContainer);
     elm.addEventListener('transitionend', this.onTransitionEnd);
+  },
+
+  setTransforms(styles) {
+    if (this.props.scrollBar) return;
+    if (!this.refs.sectionContainer) return;
+
+    if (this.useCSS3) {
+      const movement = 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)';
+      styles.WebkitTransform = styles.MozTransform = styles.msTransform = styles.transform = movement;
+      styles.transition = 'all ' + this.props.delay + 'ms ease';
+    } else if (!this.animating) {
+      const from = this.refs.sectionContainer.offsetTop;
+      const to = this.state.sectionScrolledPosition;
+
+      if (from == to) return;
+
+      this.animating = true;
+      animate(from, this.state.sectionScrolledPosition, this.props.delay, (d) => {
+        this.refs.sectionContainer.style.top =  d + 'px';
+      }, 'easeInOutCubic', () => {
+        this.animating = false;
+        this.onTransitionEnd();
+      });
+    }
+  },
+
+  support3d() {
+    let has3d;
+    const el = document.createElement('p');
+    const transforms = {
+      'webkitTransform':'-webkit-transform',
+      'OTransform':'-o-transform',
+      'msTransform':'-ms-transform',
+      'MozTransform':'-moz-transform',
+      'transform':'transform'
+    };
+
+    // Add it to the body to get the computed style.
+    document.body.insertBefore(el, null);
+
+    for (var t in transforms) {
+      if (el.style[t] !== undefined) {
+        el.style[t] = 'translate3d(1px,1px,1px)';
+        has3d = window.getComputedStyle(el).getPropertyValue(transforms[t]);
+      }
+    }
+
+    document.body.removeChild(el);
+
+    return (has3d !== undefined && has3d.length > 0 && has3d !== 'none');
   },
 
   render() {
@@ -400,12 +469,15 @@ const SectionsContainer = React.createClass({
       height: '100%',
       width: '100%',
       position: 'relative',
-      'WebkitTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      'MozTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      'msTransform':'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      'transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-      transition: 'all ' + this.props.delay + 'ms ease'
+      'msTouchAction': 'none',
+      'touchAction': 'none'
     };
+
+    this.setTransforms(containerStyle);
+
+    if (this.props.scrollBar) {
+      containerStyle.msTouchAction = containerStyle.touchAction = '';
+    }
 
     this.isScrolling = this.newSection;
     return (
