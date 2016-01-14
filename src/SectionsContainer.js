@@ -23,8 +23,8 @@ const SectionsContainer = React.createClass({
     arrowNavigation:        React.PropTypes.bool,
     anchors:                React.PropTypes.array,
     autoFooterHeight:       React.PropTypes.bool,
-    css3:                   React.PropTypes.bool
-
+    css3:                   React.PropTypes.bool,
+    touchSensitivity:       React.PropTypes.number
   },
 
   getInitialState() {
@@ -50,7 +50,8 @@ const SectionsContainer = React.createClass({
       sectionPaddingTop:    '0',
       sectionPaddingBottom: '0',
       arrowNavigation:      true,
-      css3:                 true
+      css3:                 true,
+      touchSensitivity:     5
     };
   },
 
@@ -62,7 +63,17 @@ const SectionsContainer = React.createClass({
 
   componentDidUpdate(prevProps, prevState) {},
 
-  componentWillMount() {},
+  componentWillMount() {
+    this.touchStartY = 0;
+    this.touchStartX = 0;
+    this.touchEndY = 0;
+    this.touchEndX = 0;
+
+    if (navigator && window) {
+      this.isTouchDevice = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|playbook|silk|BlackBerry|BB10|Windows Phone|Tizen|Bada|webOS|IEMobile|Opera Mini)/);
+      this.isTouch = (('ontouchstart' in window) || (navigator.msMaxTouchPoints > 0) || (navigator.maxTouchPoints));
+    }
+  },
 
   componentDidMount() {
     const {css3} = this.props;
@@ -90,6 +101,7 @@ const SectionsContainer = React.createClass({
 
   componentWillUnmount() {
     this._removeMouseWheelEventHandlers();
+    this._removeTouchHandler();
     this.removeTransitionEnd();
     window.removeEventListener('resize', this._handleResize);
     window.removeEventListener('hashchange', this._handleAnchor, false);
@@ -100,6 +112,7 @@ const SectionsContainer = React.createClass({
     this._addOverflowToBody();
     this._addHeightToParents();
     this._addMouseWheelEventHandlers();
+    this._addTouchHandler();
   },
 
   _addActiveClass() {
@@ -160,6 +173,110 @@ const SectionsContainer = React.createClass({
       } else {
         return false;
       }
+    }
+  },
+
+  _addTouchHandler() {
+    if(this.isTouchDevice || this.isTouch){
+      // Microsoft pointers
+      const MSPointer = this._getMSPointer();
+
+      this._removeTouchHandler();
+      document.addEventListener('touchstart', this._touchStartHandler);
+      document.addEventListener('touchmove', this._touchMoveHandler);
+      document.addEventListener(MSPointer.down, this._touchStartHandler);
+      document.addEventListener(MSPointer.move, this._touchMoveHandler);
+    }
+  },
+
+  _removeTouchHandler() {
+    if(this.isTouchDevice || this.isTouch){
+      // Microsoft pointers
+      const MSPointer = this._getMSPointer();
+
+      document.removeEventListener('touchstart');
+      document.removeEventListener('touchmove');
+      document.removeEventListener(MSPointer.down);
+      document.removeEventListener(MSPointer.move);
+    }
+  },
+
+  _getMSPointer() {
+    let pointer;
+
+    // IE >= 11 & rest of browsers
+    if(window.PointerEvent){
+      pointer = { down: 'pointerdown', move: 'pointermove'};
+    }
+
+    // IE < 11
+    else{
+      pointer = { down: 'MSPointerDown', move: 'MSPointerMove'};
+    }
+
+    return pointer;
+  },
+
+  _getEventsPage(e) {
+    const events = [];
+
+    events.y = (typeof e.pageY !== 'undefined' && (e.pageY || e.pageX) ? e.pageY : e.touches[0].pageY);
+    events.x = (typeof e.pageX !== 'undefined' && (e.pageY || e.pageX) ? e.pageX : e.touches[0].pageX);
+
+    // in touch devices with scrollBar:true, e.pageY is detected, but we have to deal with touch events. #1008
+    if(this.isTouch && this._isReallyTouch(e) && !this.props.scrollBar){
+      events.y = e.touches[0].pageY;
+      events.x = e.touches[0].pageX;
+    }
+
+    return events;
+  },
+
+  _isReallyTouch(e){
+    // if is not IE   ||  IE is detecting `touch` or `pen`
+    return typeof e.pointerType === 'undefined' || e.pointerType != 'mouse';
+  },
+
+  _touchStartHandler(event) {
+    //stopping the auto scroll to adjust to a section
+    if(this.props.fitToSection){
+      // $htmlBody.stop();
+    }
+
+    if(this._isReallyTouch(event)){
+        const touchEvents = this._getEventsPage(event);
+        this.touchStartY = touchEvents.y;
+        this.touchStartX = touchEvents.x;
+    }
+  },
+
+  _touchMoveHandler() {
+    if (this._isReallyTouch(event) ) {
+        event.preventDefault();
+
+        let activeSection = this.state.activeSection;
+        const slideMoving = this.isScrolling || this.newSection || this.animating;
+        const windowHeight = window.innerHeight;
+        const {touchSensitivity} = this.props;
+
+        if (!slideMoving) {
+          if(!this.props.scrollbar){
+            const touchEvents = this._getEventsPage(event);
+
+            this.touchEndY = touchEvents.y;
+            this.touchEndX = touchEvents.x;
+            // is the movement greater than the minimum resistance to scroll?
+            if (Math.abs(this.touchStartY - this.touchEndY) > (windowHeight / 100 * touchSensitivity)) {
+              if (this.touchStartY > this.touchEndY) {
+                activeSection++;
+              } else if (this.touchEndY > this.touchStartY) {
+                activeSection--;
+              }
+
+              this._shouldScroll(activeSection);
+            }
+          }
+        }
     }
   },
 
@@ -239,23 +356,27 @@ const SectionsContainer = React.createClass({
         activeSection--;
       }
 
-      if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
-        console.log('failed: ', activeSection);
-        return false;
-      }
-
-      // this._callOnLeave(activeSection);
-
-      let index = this.props.anchors[activeSection];
-      if (!this.props.anchors.length || index) {  // let the hash listener catch this
-        window.location.hash = '#' + index;
-      } else {
-        console.log('GO TO SECTION: ', activeSection);
-        this._goToSection(activeSection);
-      }
+      this._shouldScroll(activeSection);
     }
 
     return false;
+  },
+
+  _shouldScroll(activeSection) {
+    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+      console.log('failed: ', activeSection);
+      return false;
+    }
+
+    // this._callOnLeave(activeSection);
+
+    let index = this.props.anchors[activeSection];
+    if (!this.props.anchors.length || index) {  // let the hash listener catch this
+      window.location.hash = '#' + index;
+    } else {
+      console.log('GO TO SECTION: ', activeSection);
+      this._goToSection(activeSection);
+    }
   },
 
   _callOnLeave(goingToIndex) {

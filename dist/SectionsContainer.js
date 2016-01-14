@@ -39,8 +39,8 @@ var SectionsContainer = _react2['default'].createClass({
     arrowNavigation: _react2['default'].PropTypes.bool,
     anchors: _react2['default'].PropTypes.array,
     autoFooterHeight: _react2['default'].PropTypes.bool,
-    css3: _react2['default'].PropTypes.bool
-
+    css3: _react2['default'].PropTypes.bool,
+    touchSensitivity: _react2['default'].PropTypes.number
   },
 
   getInitialState: function getInitialState() {
@@ -66,7 +66,8 @@ var SectionsContainer = _react2['default'].createClass({
       sectionPaddingTop: '0',
       sectionPaddingBottom: '0',
       arrowNavigation: true,
-      css3: true
+      css3: true,
+      touchSensitivity: 5
     };
   },
 
@@ -78,7 +79,17 @@ var SectionsContainer = _react2['default'].createClass({
 
   componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
 
-  componentWillMount: function componentWillMount() {},
+  componentWillMount: function componentWillMount() {
+    this.touchStartY = 0;
+    this.touchStartX = 0;
+    this.touchEndY = 0;
+    this.touchEndX = 0;
+
+    if (navigator && window) {
+      this.isTouchDevice = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|playbook|silk|BlackBerry|BB10|Windows Phone|Tizen|Bada|webOS|IEMobile|Opera Mini)/);
+      this.isTouch = 'ontouchstart' in window || navigator.msMaxTouchPoints > 0 || navigator.maxTouchPoints;
+    }
+  },
 
   componentDidMount: function componentDidMount() {
     var css3 = this.props.css3;
@@ -106,6 +117,7 @@ var SectionsContainer = _react2['default'].createClass({
 
   componentWillUnmount: function componentWillUnmount() {
     this._removeMouseWheelEventHandlers();
+    this._removeTouchHandler();
     this.removeTransitionEnd();
     window.removeEventListener('resize', this._handleResize);
     window.removeEventListener('hashchange', this._handleAnchor, false);
@@ -116,6 +128,7 @@ var SectionsContainer = _react2['default'].createClass({
     this._addOverflowToBody();
     this._addHeightToParents();
     this._addMouseWheelEventHandlers();
+    this._addTouchHandler();
   },
 
   _addActiveClass: function _addActiveClass() {
@@ -177,6 +190,110 @@ var SectionsContainer = _react2['default'].createClass({
         previousParent = previousParent.parentNode;
       } else {
         return false;
+      }
+    }
+  },
+
+  _addTouchHandler: function _addTouchHandler() {
+    if (this.isTouchDevice || this.isTouch) {
+      // Microsoft pointers
+      var MSPointer = this._getMSPointer();
+
+      this._removeTouchHandler();
+      document.addEventListener('touchstart', this._touchStartHandler);
+      document.addEventListener('touchmove', this._touchMoveHandler);
+      document.addEventListener(MSPointer.down, this._touchStartHandler);
+      document.addEventListener(MSPointer.move, this._touchMoveHandler);
+    }
+  },
+
+  _removeTouchHandler: function _removeTouchHandler() {
+    if (this.isTouchDevice || this.isTouch) {
+      // Microsoft pointers
+      var MSPointer = this._getMSPointer();
+
+      document.removeEventListener('touchstart');
+      document.removeEventListener('touchmove');
+      document.removeEventListener(MSPointer.down);
+      document.removeEventListener(MSPointer.move);
+    }
+  },
+
+  _getMSPointer: function _getMSPointer() {
+    var pointer = undefined;
+
+    // IE >= 11 & rest of browsers
+    if (window.PointerEvent) {
+      pointer = { down: 'pointerdown', move: 'pointermove' };
+    }
+
+    // IE < 11
+    else {
+        pointer = { down: 'MSPointerDown', move: 'MSPointerMove' };
+      }
+
+    return pointer;
+  },
+
+  _getEventsPage: function _getEventsPage(e) {
+    var events = [];
+
+    events.y = typeof e.pageY !== 'undefined' && (e.pageY || e.pageX) ? e.pageY : e.touches[0].pageY;
+    events.x = typeof e.pageX !== 'undefined' && (e.pageY || e.pageX) ? e.pageX : e.touches[0].pageX;
+
+    // in touch devices with scrollBar:true, e.pageY is detected, but we have to deal with touch events. #1008
+    if (this.isTouch && this._isReallyTouch(e) && !this.props.scrollBar) {
+      events.y = e.touches[0].pageY;
+      events.x = e.touches[0].pageX;
+    }
+
+    return events;
+  },
+
+  _isReallyTouch: function _isReallyTouch(e) {
+    // if is not IE   ||  IE is detecting `touch` or `pen`
+    return typeof e.pointerType === 'undefined' || e.pointerType != 'mouse';
+  },
+
+  _touchStartHandler: function _touchStartHandler(event) {
+    //stopping the auto scroll to adjust to a section
+    if (this.props.fitToSection) {
+      // $htmlBody.stop();
+    }
+
+    if (this._isReallyTouch(event)) {
+      var touchEvents = this._getEventsPage(event);
+      this.touchStartY = touchEvents.y;
+      this.touchStartX = touchEvents.x;
+    }
+  },
+
+  _touchMoveHandler: function _touchMoveHandler() {
+    if (this._isReallyTouch(event)) {
+      event.preventDefault();
+
+      var activeSection = this.state.activeSection;
+      var slideMoving = this.isScrolling || this.newSection || this.animating;
+      var windowHeight = window.innerHeight;
+      var touchSensitivity = this.props.touchSensitivity;
+
+      if (!slideMoving) {
+        if (!this.props.scrollbar) {
+          var touchEvents = this._getEventsPage(event);
+
+          this.touchEndY = touchEvents.y;
+          this.touchEndX = touchEvents.x;
+          // is the movement greater than the minimum resistance to scroll?
+          if (Math.abs(this.touchStartY - this.touchEndY) > windowHeight / 100 * touchSensitivity) {
+            if (this.touchStartY > this.touchEndY) {
+              activeSection++;
+            } else if (this.touchEndY > this.touchStartY) {
+              activeSection--;
+            }
+
+            this._shouldScroll(activeSection);
+          }
+        }
       }
     }
   },
@@ -256,24 +373,28 @@ var SectionsContainer = _react2['default'].createClass({
         activeSection--;
       }
 
-      if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
-        console.log('failed: ', activeSection);
-        return false;
-      }
-
-      // this._callOnLeave(activeSection);
-
-      var index = this.props.anchors[activeSection];
-      if (!this.props.anchors.length || index) {
-        // let the hash listener catch this
-        window.location.hash = '#' + index;
-      } else {
-        console.log('GO TO SECTION: ', activeSection);
-        this._goToSection(activeSection);
-      }
+      this._shouldScroll(activeSection);
     }
 
     return false;
+  },
+
+  _shouldScroll: function _shouldScroll(activeSection) {
+    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+      console.log('failed: ', activeSection);
+      return false;
+    }
+
+    // this._callOnLeave(activeSection);
+
+    var index = this.props.anchors[activeSection];
+    if (!this.props.anchors.length || index) {
+      // let the hash listener catch this
+      window.location.hash = '#' + index;
+    } else {
+      console.log('GO TO SECTION: ', activeSection);
+      this._goToSection(activeSection);
+    }
   },
 
   _callOnLeave: function _callOnLeave(goingToIndex) {
