@@ -85,7 +85,7 @@ var SectionsContainer = _react2['default'].createClass({
     this.touchEndY = 0;
     this.touchEndX = 0;
 
-    if (navigator && window) {
+    if (typeof navigator !== 'undefined' && typeof window !== 'undefined') {
       this.isTouchDevice = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|playbook|silk|BlackBerry|BB10|Windows Phone|Tizen|Bada|webOS|IEMobile|Opera Mini)/);
       this.isTouch = 'ontouchstart' in window || navigator.msMaxTouchPoints > 0 || navigator.maxTouchPoints;
     }
