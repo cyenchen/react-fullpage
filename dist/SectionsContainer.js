@@ -129,7 +129,7 @@ var SectionsContainer = _react2['default'].createClass({
   _getHeight: function _getHeight() {
     var el = document.querySelector('#container');
     if (!el) return window.innerHeight;
-    var style = window.getComputedStyle();
+    var style = window.getComputedStyle(el);
     return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('padding-top'));
   },
 
