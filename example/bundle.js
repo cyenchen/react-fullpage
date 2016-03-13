@@ -19918,6 +19918,9 @@
 	  componentWillUpdate: function componentWillUpdate(nextProps, nextState) {
 	    if (this.state.activeSection !== nextState.activeSection) {
 	      this.newSection = true;
+	      var container = document.querySelector("#container");
+	      var section = container.querySelectorAll("div.section")[nextState.activeSection];
+	      container.style.background = window.getComputedStyle(section).getPropertyValue('background');
 	    }
 	  },
 
@@ -19974,7 +19977,7 @@
 	    var el = document.querySelector('#container');
 	    if (!el) return window.innerHeight;
 	    var style = window.getComputedStyle(el);
-	    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('padding-top'));
+	    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('border-top-width'));
 	  },
 
 	  _addCSS3Scroll: function _addCSS3Scroll() {
