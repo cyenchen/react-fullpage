@@ -20127,7 +20127,7 @@
 
 	      var activeSection = this.state.activeSection;
 	      var slideMoving = this.isScrolling || this.newSection || this.animating;
-	      var windowHeight = _getHeight();
+	      var windowHeight = this._getHeight();
 	      var touchSensitivity = this.props.touchSensitivity;
 
 	      if (!slideMoving) {
@@ -20274,7 +20274,7 @@
 	    var index = this.state.activeSection;
 
 	    var state = {
-	      windowHeight: _getHeight()
+	      windowHeight: this._getHeight()
 	    };
 
 	    if (initialResize) {
