@@ -265,7 +265,7 @@ const SectionsContainer = React.createClass({
 
         let activeSection = this.state.activeSection;
         const slideMoving = this.isScrolling || this.newSection || this.animating;
-        const windowHeight = _getHeight();
+        const windowHeight = this._getHeight();
         const {touchSensitivity} = this.props;
 
         if (!slideMoving) {
@@ -412,7 +412,7 @@ const SectionsContainer = React.createClass({
     let index = this.state.activeSection;
 
     let state = {
-      windowHeight: _getHeight(),
+      windowHeight: this._getHeight(),
     };
 
     if (initialResize) {
