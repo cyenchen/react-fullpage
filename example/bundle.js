@@ -272,6 +272,7 @@
 	});
 
 	React.__SECRET_DOM_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOM;
+	React.__SECRET_DOM_SERVER_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOMServer;
 
 	module.exports = React;
 
@@ -1236,7 +1237,7 @@
 	 * will remain to ensure logic does not differ in production.
 	 */
 
-	var invariant = function (condition, format, a, b, c, d, e, f) {
+	function invariant(condition, format, a, b, c, d, e, f) {
 	  if (process.env.NODE_ENV !== 'production') {
 	    if (format === undefined) {
 	      throw new Error('invariant requires an error message argument');
@@ -1250,15 +1251,16 @@
 	    } else {
 	      var args = [a, b, c, d, e, f];
 	      var argIndex = 0;
-	      error = new Error('Invariant Violation: ' + format.replace(/%s/g, function () {
+	      error = new Error(format.replace(/%s/g, function () {
 	        return args[argIndex++];
 	      }));
+	      error.name = 'Invariant Violation';
 	    }
 
 	    error.framesToPop = 1; // we don't care about invariant's own frame
 	    throw error;
 	  }
-	};
+	}
 
 	module.exports = invariant;
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(7)))
@@ -9477,6 +9479,7 @@
 	 */
 	var EventInterface = {
 	  type: null,
+	  target: null,
 	  // currentTarget is set when dispatching; no use in copying it here
 	  currentTarget: emptyFunction.thatReturnsNull,
 	  eventPhase: null,
@@ -9510,8 +9513,6 @@
 	  this.dispatchConfig = dispatchConfig;
 	  this.dispatchMarker = dispatchMarker;
 	  this.nativeEvent = nativeEvent;
-	  this.target = nativeEventTarget;
-	  this.currentTarget = nativeEventTarget;
 
 	  var Interface = this.constructor.Interface;
 	  for (var propName in Interface) {
@@ -9522,7 +9523,11 @@
 	    if (normalize) {
 	      this[propName] = normalize(nativeEvent);
 	    } else {
-	      this[propName] = nativeEvent[propName];
+	      if (propName === 'target') {
+	        this.target = nativeEventTarget;
+	      } else {
+	        this[propName] = nativeEvent[propName];
+	      }
 	    }
 	  }
 
@@ -10622,6 +10627,7 @@
 	    multiple: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
 	    muted: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
 	    name: null,
+	    nonce: MUST_USE_ATTRIBUTE,
 	    noValidate: HAS_BOOLEAN_VALUE,
 	    open: HAS_BOOLEAN_VALUE,
 	    optimum: null,
@@ -10633,6 +10639,7 @@
 	    readOnly: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
 	    rel: null,
 	    required: HAS_BOOLEAN_VALUE,
+	    reversed: HAS_BOOLEAN_VALUE,
 	    role: MUST_USE_ATTRIBUTE,
 	    rows: MUST_USE_ATTRIBUTE | HAS_POSITIVE_NUMERIC_VALUE,
 	    rowSpan: null,
@@ -10683,8 +10690,8 @@
 	     */
 	    // autoCapitalize and autoCorrect are supported in Mobile Safari for
 	    // keyboard hints.
-	    autoCapitalize: null,
-	    autoCorrect: null,
+	    autoCapitalize: MUST_USE_ATTRIBUTE,
+	    autoCorrect: MUST_USE_ATTRIBUTE,
 	    // autoSave allows WebKit/Blink to persist values of input fields on page reloads
 	    autoSave: null,
 	    // color is for Safari mask-icon link
@@ -10715,9 +10722,7 @@
 	    httpEquiv: 'http-equiv'
 	  },
 	  DOMPropertyNames: {
-	    autoCapitalize: 'autocapitalize',
 	    autoComplete: 'autocomplete',
-	    autoCorrect: 'autocorrect',
 	    autoFocus: 'autofocus',
 	    autoPlay: 'autoplay',
 	    autoSave: 'autosave',
@@ -13371,7 +13376,10 @@
 	      }
 	    });
 
-	    nativeProps.children = content;
+	    if (content) {
+	      nativeProps.children = content;
+	    }
+
 	    return nativeProps;
 	  }
 
@@ -13796,7 +13804,7 @@
 	    var value = LinkedValueUtils.getValue(props);
 
 	    if (value != null) {
-	      updateOptions(this, props, value);
+	      updateOptions(this, Boolean(props.multiple), value);
 	    }
 	  }
 	}
@@ -16831,11 +16839,14 @@
 	 * @typechecks
 	 */
 
+	/* eslint-disable fb-www/typeof-undefined */
+
 	/**
 	 * Same as document.activeElement but wraps in a try-catch block. In IE it is
 	 * not safe to call document.activeElement if there is nothing focused.
 	 *
-	 * The activeElement will be null only if the document or document body is not yet defined.
+	 * The activeElement will be null only if the document or document body is not
+	 * yet defined.
 	 */
 	'use strict';
 
@@ -16843,7 +16854,6 @@
 	  if (typeof document === 'undefined') {
 	    return null;
 	  }
-
 	  try {
 	    return document.activeElement || document.body;
 	  } catch (e) {
@@ -18583,7 +18593,9 @@
 	  'setValueForProperty': 'update attribute',
 	  'setValueForAttribute': 'update attribute',
 	  'deleteValueForProperty': 'remove attribute',
-	  'dangerouslyReplaceNodeWithMarkupByID': 'replace'
+	  'setValueForStyles': 'update styles',
+	  'replaceNodeWithMarkup': 'replace',
+	  'updateTextContent': 'set textContent'
 	};
 
 	function getTotalTime(measurements) {
@@ -18775,18 +18787,23 @@
 	'use strict';
 
 	var performance = __webpack_require__(148);
-	var curPerformance = performance;
+
+	var performanceNow;
 
 	/**
 	 * Detect if we can use `window.performance.now()` and gracefully fallback to
 	 * `Date.now()` if it doesn't exist. We need to support Firefox < 15 for now
 	 * because of Facebook's testing infrastructure.
 	 */
-	if (!curPerformance || !curPerformance.now) {
-	  curPerformance = Date;
+	if (performance.now) {
+	  performanceNow = function () {
+	    return performance.now();
+	  };
+	} else {
+	  performanceNow = function () {
+	    return Date.now();
+	  };
 	}
-
-	var performanceNow = curPerformance.now.bind(curPerformance);
 
 	module.exports = performanceNow;
 
@@ -18835,7 +18852,7 @@
 
 	'use strict';
 
-	module.exports = '0.14.2';
+	module.exports = '0.14.7';
 
 /***/ },
 /* 150 */
@@ -19814,9 +19831,9 @@
 
 	module.exports = {
 	  SectionsContainer: __webpack_require__(163),
-	  Section: __webpack_require__(164),
-	  Header: __webpack_require__(165),
-	  Footer: __webpack_require__(166)
+	  Section: __webpack_require__(165),
+	  Header: __webpack_require__(166),
+	  Footer: __webpack_require__(167)
 	};
 
 /***/ },
@@ -19841,6 +19858,8 @@
 
 	var _reactDom2 = _interopRequireDefault(_reactDom);
 
+	var _Utils = __webpack_require__(164);
+
 	var SectionsContainer = _react2['default'].createClass({
 	  displayName: 'SectionsContainer',
 
@@ -19863,8 +19882,9 @@
 	    sectionPaddingBottom: _react2['default'].PropTypes.string,
 	    arrowNavigation: _react2['default'].PropTypes.bool,
 	    anchors: _react2['default'].PropTypes.array,
-	    autoFooterHeight: _react2['default'].PropTypes.bool
-
+	    autoFooterHeight: _react2['default'].PropTypes.bool,
+	    css3: _react2['default'].PropTypes.bool,
+	    touchSensitivity: _react2['default'].PropTypes.number
 	  },
 
 	  getInitialState: function getInitialState() {
@@ -19889,7 +19909,9 @@
 	      activeClass: 'active',
 	      sectionPaddingTop: '0',
 	      sectionPaddingBottom: '0',
-	      arrowNavigation: true
+	      arrowNavigation: true,
+	      css3: true,
+	      touchSensitivity: 5
 	    };
 	  },
 
@@ -19901,22 +19923,34 @@
 
 	  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
 
-	  componentWillUnmount: function componentWillUnmount() {
-	    this._removeMouseWheelEventHandlers();
-	    window.removeEventListener('resize', this._handleResize);
-	    window.removeEventListener('hashchange', this._handleAnchor, false);
-	    window.removeEventListener('keydown', this._handleArrowKeys);
+	  componentWillMount: function componentWillMount() {
+	    this.touchStartY = 0;
+	    this.touchStartX = 0;
+	    this.touchEndY = 0;
+	    this.touchEndX = 0;
+	    this.isTouchDevice = false;
+	    this.isTouch = false;
+
+	    if (typeof navigator !== 'undefined' && typeof window !== 'undefined') {
+	      this.isTouchDevice = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|playbook|silk|BlackBerry|BB10|Windows Phone|Tizen|Bada|webOS|IEMobile|Opera Mini)/);
+	      this.isTouch = 'ontouchstart' in window || navigator.msMaxTouchPoints > 0 || navigator.maxTouchPoints;
+	    }
 	  },
 
 	  componentDidMount: function componentDidMount() {
+	    var css3 = this.props.css3;
+
+	    this.useCSS3 = css3 ? this.support3d() : false;
+	    if (!this.useCSS3) (0, _Utils.requestAni)();
+
 	    window.addEventListener('resize', this._handleResize);
 
 	    if (!this.props.scrollBar) {
 	      this._addCSS3Scroll();
-	      this._handleAnchor(); //Go to anchor in case we found it in the URL
+	      // this._handleAnchor(); //Go to anchor in case we found it in the URL
 	      this.addTransitionEnd();
 
-	      window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
+	      // window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
 
 	      if (this.props.arrowNavigation) {
 	        window.addEventListener('keydown', this._handleArrowKeys);
@@ -19927,30 +19961,40 @@
 	    if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
 	  },
 
+	  componentWillUnmount: function componentWillUnmount() {
+	    this._removeMouseWheelEventHandlers();
+	    this._removeTouchHandler();
+	    this.removeTransitionEnd();
+	    window.removeEventListener('resize', this._handleResize);
+	    // window.removeEventListener('hashchange', this._handleAnchor, false);
+	    window.removeEventListener('keydown', this._handleArrowKeys);
+	  },
+
 	  _addCSS3Scroll: function _addCSS3Scroll() {
 	    this._addOverflowToBody();
 	    this._addHeightToParents();
 	    this._addMouseWheelEventHandlers();
+	    this._addTouchHandler();
 	  },
 
-	  _addActiveClass: function _addActiveClass() {
-	    this._removeActiveClass();
-
-	    var hash = window.location.hash.substring(1);
-	    var activeLinks = document.querySelectorAll('a[href="#' + hash + '"]');
-
-	    for (var i = 0; i < activeLinks.length; i++) {
-	      activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ' : '') + ('' + this.props.activeClass);
-	    }
-	  },
-
-	  _removeActiveClass: function _removeActiveClass() {
-	    var activeLinks = document.querySelectorAll('a:not([href="#' + this.props.anchors[this.state.activeSection] + '"])');
-
-	    for (var i = 0; i < activeLinks.length; i++) {
-	      activeLinks[i].className = activeLinks[i].className.replace(/\b ?active/g, '');
-	    }
-	  },
+	  // _addActiveClass() {
+	  //   this._removeActiveClass();
+	  //
+	  //   let hash = window.location.hash.substring(1);
+	  //   let activeLinks = document.querySelectorAll(`a[href="#${hash}"]`);
+	  //
+	  //   for( let i=0; i < activeLinks.length; i++) {
+	  //     activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ': '') + `${this.props.activeClass}`;
+	  //   }
+	  // },
+	  //
+	  // _removeActiveClass() {
+	  //   let activeLinks = document.querySelectorAll(`a:not([href="#${this.props.anchors[this.state.activeSection]}"])`);
+	  //
+	  //   for( let i=0; i < activeLinks.length; i++) {
+	  //     activeLinks[i].className = activeLinks[i].className.replace(/\b ?active/g, '');
+	  //   }
+	  // },
 
 	  _addChildren: function _addChildren() {
 	    var _this = this;
@@ -19958,11 +20002,15 @@
 	    return _react2['default'].Children.map(this.props.children, (function (child, index) {
 	      var ref = _this.props.anchors[index] || 'section-' + index;
 	      var domId = _this.props.anchors[index] || null;
+	      var height = _this.state.windowHeight;
+	      if (_this.props.anchors[index] === 'footer' && _this.props.autoFooterHeight && _this.props.scrollBar) {
+	        height = 'auto';
+	      }
 	      if (ref) {
 	        return _react2['default'].cloneElement(child, {
 	          ref: ref,
 	          id: _this.props.scrollBar ? domId : null,
-	          windowHeight: _this.state.windowHeight,
+	          windowHeight: height,
 	          verticalAlign: _this.props.verticalAlign,
 	          sectionClassName: _this.props.sectionClassName,
 	          sectionPaddingTop: _this.props.sectionPaddingTop,
@@ -19988,6 +20036,110 @@
 	        previousParent = previousParent.parentNode;
 	      } else {
 	        return false;
+	      }
+	    }
+	  },
+
+	  _addTouchHandler: function _addTouchHandler() {
+	    if (this.isTouchDevice || this.isTouch) {
+	      // Microsoft pointers
+	      var MSPointer = this._getMSPointer();
+
+	      this._removeTouchHandler();
+	      document.addEventListener('touchstart', this._touchStartHandler);
+	      document.addEventListener('touchmove', this._touchMoveHandler);
+	      document.addEventListener(MSPointer.down, this._touchStartHandler);
+	      document.addEventListener(MSPointer.move, this._touchMoveHandler);
+	    }
+	  },
+
+	  _removeTouchHandler: function _removeTouchHandler() {
+	    if (this.isTouchDevice || this.isTouch) {
+	      // Microsoft pointers
+	      var MSPointer = this._getMSPointer();
+
+	      document.removeEventListener('touchstart');
+	      document.removeEventListener('touchmove');
+	      document.removeEventListener(MSPointer.down);
+	      document.removeEventListener(MSPointer.move);
+	    }
+	  },
+
+	  _getMSPointer: function _getMSPointer() {
+	    var pointer = undefined;
+
+	    // IE >= 11 & rest of browsers
+	    if (window.PointerEvent) {
+	      pointer = { down: 'pointerdown', move: 'pointermove' };
+	    }
+
+	    // IE < 11
+	    else {
+	        pointer = { down: 'MSPointerDown', move: 'MSPointerMove' };
+	      }
+
+	    return pointer;
+	  },
+
+	  _getEventsPage: function _getEventsPage(e) {
+	    var events = [];
+
+	    events.y = typeof e.pageY !== 'undefined' && (e.pageY || e.pageX) ? e.pageY : e.touches[0].pageY;
+	    events.x = typeof e.pageX !== 'undefined' && (e.pageY || e.pageX) ? e.pageX : e.touches[0].pageX;
+
+	    // in touch devices with scrollBar:true, e.pageY is detected, but we have to deal with touch events. #1008
+	    if (this.isTouch && this._isReallyTouch(e) && !this.props.scrollBar) {
+	      events.y = e.touches[0].pageY;
+	      events.x = e.touches[0].pageX;
+	    }
+
+	    return events;
+	  },
+
+	  _isReallyTouch: function _isReallyTouch(e) {
+	    // if is not IE   ||  IE is detecting `touch` or `pen`
+	    return typeof e.pointerType === 'undefined' || e.pointerType != 'mouse';
+	  },
+
+	  _touchStartHandler: function _touchStartHandler(event) {
+	    //stopping the auto scroll to adjust to a section
+	    if (this.props.fitToSection) {
+	      // $htmlBody.stop();
+	    }
+
+	    if (this._isReallyTouch(event)) {
+	      var touchEvents = this._getEventsPage(event);
+	      this.touchStartY = touchEvents.y;
+	      this.touchStartX = touchEvents.x;
+	    }
+	  },
+
+	  _touchMoveHandler: function _touchMoveHandler() {
+	    if (this._isReallyTouch(event)) {
+	      event.preventDefault();
+
+	      var activeSection = this.state.activeSection;
+	      var slideMoving = this.isScrolling || this.newSection || this.animating;
+	      var windowHeight = window.innerHeight;
+	      var touchSensitivity = this.props.touchSensitivity;
+
+	      if (!slideMoving) {
+	        if (!this.props.scrollbar) {
+	          var touchEvents = this._getEventsPage(event);
+
+	          this.touchEndY = touchEvents.y;
+	          this.touchEndX = touchEvents.x;
+	          // is the movement greater than the minimum resistance to scroll?
+	          if (Math.abs(this.touchStartY - this.touchEndY) > windowHeight / 100 * touchSensitivity) {
+	            if (this.touchStartY > this.touchEndY) {
+	              activeSection++;
+	            } else if (this.touchEndY > this.touchStartY) {
+	              activeSection--;
+	            }
+
+	            this._shouldScroll(activeSection);
+	          }
+	        }
 	      }
 	    }
 	  },
@@ -20052,7 +20204,7 @@
 
 	    var activeSection = this.state.activeSection;
 
-	    if (this.isScrolling || this.newSection) {
+	    if (this.isScrolling || this.newSection || this.animating) {
 	      return false;
 	    }
 
@@ -20067,24 +20219,28 @@
 	        activeSection--;
 	      }
 
-	      if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
-	        console.log('failed: ', activeSection);
-	        return false;
-	      }
-
-	      this._callOnLeave(activeSection);
-
-	      var index = this.props.anchors[activeSection];
-	      if (!this.props.anchors.length || index) {
-	        // let the hash listener catch this
-	        window.location.hash = '#' + index;
-	      } else {
-	        console.log('GO TO SECTION: ', activeSection);
-	        this._goToSection(activeSection);
-	      }
+	      this._shouldScroll(activeSection);
 	    }
 
 	    return false;
+	  },
+
+	  _shouldScroll: function _shouldScroll(activeSection) {
+	    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
+	      console.log('failed: ', activeSection);
+	      return false;
+	    }
+
+	    // this._callOnLeave(activeSection);
+
+	    var index = this.props.anchors[activeSection];
+	    if (!this.props.anchors.length || index) {
+	      // let the hash listener catch this
+	      window.location.hash = '#' + index;
+	    } else {
+	      console.log('GO TO SECTION: ', activeSection);
+	      this._goToSection(activeSection);
+	    }
 	  },
 
 	  _callOnLeave: function _callOnLeave(goingToIndex) {
@@ -20115,9 +20271,9 @@
 	    };
 
 	    if (initialResize) {
-	      index = this._getSectionIndexFromHash();
-	      if (index < 0) index = this.state.activeSection;
-	      state.activeSection = index;
+	      // index = this._getSectionIndexFromHash();
+	      // if (index < 0) index = this.state.activeSection;
+	      state.activeSection = this.state.activeSection;
 	    }
 
 	    state.sectionScrolledPosition = this._getPosition(index, state.windowHeight);
@@ -20169,30 +20325,30 @@
 	    if (code < 37 || code > 40) return;
 
 	    var direction = code === 38 || code === 37 ? this.state.activeSection - 1 : code === 40 || code === 39 ? this.state.activeSection + 1 : -1;
-	    var hash = this.props.anchors[direction];
+	    // const hash      = this.props.anchors[direction];
 
 	    this._callOnLeave(direction);
 
 	    if (!this.props.anchors.length || hash) {
-	      window.location.hash = '#' + hash;
+	      // window.location.hash = '#' + hash;
 	    } else {
-	      this._handleSectionTransition(direction);
-	    }
+	        this._handleSectionTransition(direction);
+	      }
 	  },
 
-	  _getSectionIndexFromHash: function _getSectionIndexFromHash() {
-	    var hash = window.location.hash.substring(1);
-	    return this.props.anchors.indexOf(hash);
-	  },
+	  // _getSectionIndexFromHash() {
+	  //   const hash  = window.location.hash.substring(1);
+	  //   return this.props.anchors.indexOf(hash);
+	  // },
 
-	  _handleAnchor: function _handleAnchor() {
-	    var index = this._getSectionIndexFromHash();
-	    if (index < 0) return false;
-
-	    this._handleSectionTransition(index);
-
-	    this._addActiveClass();
-	  },
+	  // _handleAnchor() {
+	  //   const index = this._getSectionIndexFromHash();
+	  //   if (index < 0) return false;
+	  //
+	  //   this._handleSectionTransition(index);
+	  //
+	  //   this._addActiveClass();
+	  // },
 
 	  renderNavigation: function renderNavigation() {
 	    var _this2 = this;
@@ -20231,9 +20387,66 @@
 	    }
 	  },
 
+	  removeTransitionEnd: function removeTransitionEnd() {
+	    var elm = _reactDom2['default'].findDOMNode(this.refs.sectionContainer);
+	    if (elm) elm.removeEventListener('transitionend', this.onTransitionEnd);
+	  },
+
 	  addTransitionEnd: function addTransitionEnd() {
 	    var elm = _reactDom2['default'].findDOMNode(this.refs.sectionContainer);
 	    elm.addEventListener('transitionend', this.onTransitionEnd);
+	  },
+
+	  setTransforms: function setTransforms(styles) {
+	    var _this3 = this;
+
+	    if (this.props.scrollBar) return;
+	    if (!this.refs.sectionContainer) return;
+
+	    if (this.useCSS3) {
+	      var movement = 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)';
+	      styles.WebkitTransform = styles.MozTransform = styles.msTransform = styles.transform = movement;
+	      styles.transition = 'all ' + this.props.delay + 'ms ease';
+	    } else if (!this.animating) {
+	      var from = this.refs.sectionContainer.offsetTop;
+	      var to = this.state.sectionScrolledPosition;
+
+	      if (from == to) return;
+
+	      this.animating = true;
+	      (0, _Utils.animate)(from, this.state.sectionScrolledPosition, this.props.delay, function (d) {
+	        _this3.refs.sectionContainer.style.top = d + 'px';
+	      }, 'easeInOutCubic', function () {
+	        _this3.animating = false;
+	        _this3.onTransitionEnd();
+	      });
+	    }
+	  },
+
+	  support3d: function support3d() {
+	    var has3d = undefined;
+	    var el = document.createElement('p');
+	    var transforms = {
+	      'webkitTransform': '-webkit-transform',
+	      'OTransform': '-o-transform',
+	      'msTransform': '-ms-transform',
+	      'MozTransform': '-moz-transform',
+	      'transform': 'transform'
+	    };
+
+	    // Add it to the body to get the computed style.
+	    document.body.insertBefore(el, null);
+
+	    for (var t in transforms) {
+	      if (el.style[t] !== undefined) {
+	        el.style[t] = 'translate3d(1px,1px,1px)';
+	        has3d = window.getComputedStyle(el).getPropertyValue(transforms[t]);
+	      }
+	    }
+
+	    document.body.removeChild(el);
+
+	    return has3d !== undefined && has3d.length > 0 && has3d !== 'none';
 	  },
 
 	  render: function render() {
@@ -20241,12 +20454,15 @@
 	      height: '100%',
 	      width: '100%',
 	      position: 'relative',
-	      'WebkitTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-	      'MozTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-	      'msTransform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-	      'transform': 'translate3d(0px, ' + this.state.sectionScrolledPosition + 'px, 0px)',
-	      transition: 'all ' + this.props.delay + 'ms ease'
+	      'msTouchAction': 'none',
+	      'touchAction': 'none'
 	    };
+
+	    this.setTransforms(containerStyle);
+
+	    if (this.props.scrollBar) {
+	      containerStyle.msTouchAction = containerStyle.touchAction = '';
+	    }
 
 	    this.isScrolling = this.newSection;
 	    return _react2['default'].createElement('div', null, _react2['default'].createElement('div', { ref: 'sectionContainer', className: this.props.className, style: containerStyle }, this._addChildren()), this.props.navigation && !this.props.scrollBar ? this.renderNavigation() : null);
@@ -20259,6 +20475,116 @@
 
 /***/ },
 /* 164 */
+/***/ function(module, exports) {
+
+	//
+	// requestAnimationFrame polyfill by Erik Möller.
+	//  With fixes from Paul Irish and Tino Zijdel
+	//
+	//  http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+	//  http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+	//
+	//  MIT license
+	//
+	'use strict';
+
+	Object.defineProperty(exports, '__esModule', {
+	    value: true
+	});
+	exports.requestAni = requestAni;
+	exports.animate = animate;
+
+	function requestAni() {
+	    (function () {
+	        var lastTime = 0;
+	        var vendors = ['webkit', 'moz'];
+	        for (var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+	            window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
+	            window.cancelAnimationFrame = window[vendors[x] + 'CancelAnimationFrame'] || window[vendors[x] + 'CancelRequestAnimationFrame'];
+	        }
+
+	        if (!window.requestAnimationFrame) window.requestAnimationFrame = function (callback) {
+	            var currTime = new Date().getTime();
+	            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+	            var id = window.setTimeout(function () {
+	                callback(currTime + timeToCall);
+	            }, timeToCall);
+	            lastTime = currTime + timeToCall;
+	            return id;
+	        };
+
+	        if (!window.cancelAnimationFrame) window.cancelAnimationFrame = function (id) {
+	            clearTimeout(id);
+	        };
+	    })();
+	}
+
+	/**
+	 * TinyAnimate
+	 *  version 0.2.0
+	 *
+	 * Source:  https://github.com/branneman/TinyAnimate
+	 * Author:  Bran van der Meer <branmovic@gmail.com> (http://bran.name/)
+	 * License: MIT
+	 */
+
+	function animate(from, to, duration, update, easing, done) {
+	    // Early bail out if called incorrectly
+	    if (typeof from !== 'number' || typeof to !== 'number' || typeof duration !== 'number' || typeof update !== 'function') return;
+
+	    // Determine easing
+	    if (typeof easing === 'string' && easings[easing]) {
+	        easing = easings[easing];
+	    }
+	    if (typeof easing !== 'function') {
+	        easing = easings.linear;
+	    }
+
+	    // Create mock done() function if necessary
+	    if (typeof done !== 'function') {
+	        done = function () {};
+	    }
+
+	    // Pick implementation (requestAnimationFrame | setTimeout)
+	    var rAF = window.requestAnimationFrame || function (callback) {
+	        window.setTimeout(callback, 1000 / 60);
+	    };
+
+	    // Animation loop
+	    var change = to - from;
+	    function loop() {
+	        var time = +new Date() - start;
+	        update(easing(time, from, change, duration));
+	        if (time >= duration) {
+	            update(to);
+	            done();
+	        } else {
+	            rAF(loop);
+	        }
+	    }
+	    update(from);
+
+	    // Start animation loop
+	    var start = +new Date();
+	    rAF(loop);
+	}
+
+	// https://github.com/branneman/TinyAnimate/blob/master/src/TinyAnimate.js
+	var easings = {};
+	easings.linear = function (t, b, c, d) {
+	    return c * t / d + b;
+	};
+	easings.easeInOutQuad = function (t, b, c, d) {
+	    if ((t /= d / 2) < 1) return c / 2 * t * t + b;
+	    return -c / 2 * (--t * (t - 2) - 1) + b;
+	};
+	easings.easeInOutCubic = function (t, b, c, d) {
+	    if ((t /= d / 2) < 1) return c / 2 * t * t * t + b;
+	    return c / 2 * ((t -= 2) * t * t + 2) + b;
+	};
+
+/***/ },
+/* 165 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -20324,7 +20650,7 @@
 	module.exports = exports['default'];
 
 /***/ },
-/* 165 */
+/* 166 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -20361,7 +20687,7 @@
 	module.exports = exports['default'];
 
 /***/ },
-/* 166 */
+/* 167 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';

@@ -103,10 +103,10 @@ var SectionsContainer = _react2['default'].createClass({
 
     if (!this.props.scrollBar) {
       this._addCSS3Scroll();
-      this._handleAnchor(); //Go to anchor in case we found it in the URL
+      // this._handleAnchor(); //Go to anchor in case we found it in the URL
       this.addTransitionEnd();
 
-      window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
+      // window.addEventListener('hashchange', this._handleAnchor, false); //Add an event to watch the url hash changes
 
       if (this.props.arrowNavigation) {
         window.addEventListener('keydown', this._handleArrowKeys);
@@ -122,7 +122,7 @@ var SectionsContainer = _react2['default'].createClass({
     this._removeTouchHandler();
     this.removeTransitionEnd();
     window.removeEventListener('resize', this._handleResize);
-    window.removeEventListener('hashchange', this._handleAnchor, false);
+    // window.removeEventListener('hashchange', this._handleAnchor, false);
     window.removeEventListener('keydown', this._handleArrowKeys);
   },
 
@@ -133,24 +133,24 @@ var SectionsContainer = _react2['default'].createClass({
     this._addTouchHandler();
   },
 
-  _addActiveClass: function _addActiveClass() {
-    this._removeActiveClass();
-
-    var hash = window.location.hash.substring(1);
-    var activeLinks = document.querySelectorAll('a[href="#' + hash + '"]');
-
-    for (var i = 0; i < activeLinks.length; i++) {
-      activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ' : '') + ('' + this.props.activeClass);
-    }
-  },
-
-  _removeActiveClass: function _removeActiveClass() {
-    var activeLinks = document.querySelectorAll('a:not([href="#' + this.props.anchors[this.state.activeSection] + '"])');
-
-    for (var i = 0; i < activeLinks.length; i++) {
-      activeLinks[i].className = activeLinks[i].className.replace(/\b ?active/g, '');
-    }
-  },
+  // _addActiveClass() {
+  //   this._removeActiveClass();
+  //
+  //   let hash = window.location.hash.substring(1);
+  //   let activeLinks = document.querySelectorAll(`a[href="#${hash}"]`);
+  //
+  //   for( let i=0; i < activeLinks.length; i++) {
+  //     activeLinks[i].className = activeLinks[i].className + (activeLinks[i].className.length > 0 ? ' ': '') + `${this.props.activeClass}`;
+  //   }
+  // },
+  //
+  // _removeActiveClass() {
+  //   let activeLinks = document.querySelectorAll(`a:not([href="#${this.props.anchors[this.state.activeSection]}"])`);
+  //
+  //   for( let i=0; i < activeLinks.length; i++) {
+  //     activeLinks[i].className = activeLinks[i].className.replace(/\b ?active/g, '');
+  //   }
+  // },
 
   _addChildren: function _addChildren() {
     var _this = this;
@@ -427,9 +427,9 @@ var SectionsContainer = _react2['default'].createClass({
     };
 
     if (initialResize) {
-      index = this._getSectionIndexFromHash();
-      if (index < 0) index = this.state.activeSection;
-      state.activeSection = index;
+      // index = this._getSectionIndexFromHash();
+      // if (index < 0) index = this.state.activeSection;
+      state.activeSection = this.state.activeSection;
     }
 
     state.sectionScrolledPosition = this._getPosition(index, state.windowHeight);
@@ -481,30 +481,30 @@ var SectionsContainer = _react2['default'].createClass({
     if (code < 37 || code > 40) return;
 
     var direction = code === 38 || code === 37 ? this.state.activeSection - 1 : code === 40 || code === 39 ? this.state.activeSection + 1 : -1;
-    var hash = this.props.anchors[direction];
+    // const hash      = this.props.anchors[direction];
 
     this._callOnLeave(direction);
 
     if (!this.props.anchors.length || hash) {
-      window.location.hash = '#' + hash;
+      // window.location.hash = '#' + hash;
     } else {
-      this._handleSectionTransition(direction);
-    }
+        this._handleSectionTransition(direction);
+      }
   },
 
-  _getSectionIndexFromHash: function _getSectionIndexFromHash() {
-    var hash = window.location.hash.substring(1);
-    return this.props.anchors.indexOf(hash);
-  },
+  // _getSectionIndexFromHash() {
+  //   const hash  = window.location.hash.substring(1);
+  //   return this.props.anchors.indexOf(hash);
+  // },
 
-  _handleAnchor: function _handleAnchor() {
-    var index = this._getSectionIndexFromHash();
-    if (index < 0) return false;
-
-    this._handleSectionTransition(index);
-
-    this._addActiveClass();
-  },
+  // _handleAnchor() {
+  //   const index = this._getSectionIndexFromHash();
+  //   if (index < 0) return false;
+  //
+  //   this._handleSectionTransition(index);
+  //
+  //   this._addActiveClass();
+  // },
 
   renderNavigation: function renderNavigation() {
     var _this2 = this;
