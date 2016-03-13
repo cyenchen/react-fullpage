@@ -58,6 +58,9 @@ const SectionsContainer = React.createClass({
   componentWillUpdate(nextProps, nextState) {
     if (this.state.activeSection !== nextState.activeSection) {
       this.newSection = true;
+      let container = document.querySelector("#container");
+      let section = container.querySelectorAll("div.section")[nextState.activeSection];
+      container.style.background = window.getComputedStyle(section).getPropertyValue('background');
     }
   },
 
@@ -114,7 +117,7 @@ const SectionsContainer = React.createClass({
     let el = document.querySelector('#container');
     if (!el) return window.innerHeight;
     let style = window.getComputedStyle(el);
-    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('padding-top'));
+    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('border-top-width'));
   },
 
   _addCSS3Scroll() {
