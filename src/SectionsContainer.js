@@ -383,7 +383,7 @@ const SectionsContainer = React.createClass({
     if (!this.props.anchors.length || index) {  // let the hash listener catch this
       window.location.hash = '#' + index;
     } else {
-      console.log('GO TO SECTION: ', activeSection);
+      // console.log('GO TO SECTION: ', activeSection);
       this._goToSection(activeSection);
     }
   },
