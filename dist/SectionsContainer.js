@@ -114,7 +114,7 @@ var SectionsContainer = _react2['default'].createClass({
     }
 
     // Get actual window height
-    if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
+    if (this.state.windowHeight !== _getHeight()) this._handleResize(true);
   },
 
   componentWillUnmount: function componentWillUnmount() {
@@ -124,6 +124,13 @@ var SectionsContainer = _react2['default'].createClass({
     window.removeEventListener('resize', this._handleResize);
     // window.removeEventListener('hashchange', this._handleAnchor, false);
     window.removeEventListener('keydown', this._handleArrowKeys);
+  },
+
+  _getHeight: function _getHeight() {
+    var el = document.querySelector('#container');
+    if (!el) return window.innerHeight;
+    var style = window.getComputedStyle();
+    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('padding-top'));
   },
 
   _addCSS3Scroll: function _addCSS3Scroll() {
@@ -276,7 +283,7 @@ var SectionsContainer = _react2['default'].createClass({
 
       var activeSection = this.state.activeSection;
       var slideMoving = this.isScrolling || this.newSection || this.animating;
-      var windowHeight = window.innerHeight;
+      var windowHeight = _getHeight();
       var touchSensitivity = this.props.touchSensitivity;
 
       if (!slideMoving) {
@@ -394,7 +401,7 @@ var SectionsContainer = _react2['default'].createClass({
       // let the hash listener catch this
       window.location.hash = '#' + index;
     } else {
-      console.log('GO TO SECTION: ', activeSection);
+      // console.log('GO TO SECTION: ', activeSection);
       this._goToSection(activeSection);
     }
   },
@@ -423,7 +430,7 @@ var SectionsContainer = _react2['default'].createClass({
     var index = this.state.activeSection;
 
     var state = {
-      windowHeight: window.innerHeight
+      windowHeight: _getHeight()
     };
 
     if (initialResize) {
