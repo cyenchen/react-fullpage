@@ -19958,7 +19958,7 @@
 	    }
 
 	    // Get actual window height
-	    if (this.state.windowHeight !== _getHeight()) this._handleResize(true);
+	    if (this.state.windowHeight !== this._getHeight()) this._handleResize(true);
 	  },
 
 	  componentWillUnmount: function componentWillUnmount() {
