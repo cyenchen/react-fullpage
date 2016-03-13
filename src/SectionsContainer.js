@@ -98,7 +98,7 @@ const SectionsContainer = React.createClass({
     }
 
     // Get actual window height
-    if (this.state.windowHeight !== window.innerHeight) this._handleResize(true);
+    if (this.state.windowHeight !== _getHeight()) this._handleResize(true);
   },
 
   componentWillUnmount() {
@@ -108,6 +108,13 @@ const SectionsContainer = React.createClass({
     window.removeEventListener('resize', this._handleResize);
     // window.removeEventListener('hashchange', this._handleAnchor, false);
     window.removeEventListener('keydown', this._handleArrowKeys);
+  },
+
+  _getHeight() {
+    let el = document.querySelector('#container');
+    if (!el) return window.innerHeight;
+    let style = window.getComputedStyle();
+    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('padding-top'));
   },
 
   _addCSS3Scroll() {
@@ -258,7 +265,7 @@ const SectionsContainer = React.createClass({
 
         let activeSection = this.state.activeSection;
         const slideMoving = this.isScrolling || this.newSection || this.animating;
-        const windowHeight = window.innerHeight;
+        const windowHeight = _getHeight();
         const {touchSensitivity} = this.props;
 
         if (!slideMoving) {
@@ -405,7 +412,7 @@ const SectionsContainer = React.createClass({
     let index = this.state.activeSection;
 
     let state = {
-      windowHeight: window.innerHeight,
+      windowHeight: _getHeight(),
     };
 
     if (initialResize) {
