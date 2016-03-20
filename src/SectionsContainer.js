@@ -394,12 +394,14 @@ const SectionsContainer = React.createClass({
   },
 
   _shouldScroll(activeSection) {
-    console.log(activeSection);
     if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
       // console.log('failed: ', activeSection);
       return false;
     }
 
+    console.log(this.props.children);
+    console.log(activeSection);
+    console.log(this.state);
     // this._callOnLeave(activeSection);
 
     this._goToSection(activeSection);

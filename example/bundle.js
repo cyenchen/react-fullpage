@@ -90,44 +90,6 @@
 	      'div',
 	      null,
 	      _react2['default'].createElement(
-	        _index.Header,
-	        null,
-	        _react2['default'].createElement(
-	          'a',
-	          { href: '#sectionOne', className: 'opa' },
-	          'Section One'
-	        ),
-	        _react2['default'].createElement(
-	          'a',
-	          { href: '#sectionTwo' },
-	          'Section Two'
-	        ),
-	        _react2['default'].createElement(
-	          'a',
-	          { href: '#sectionThree' },
-	          'Section Three'
-	        )
-	      ),
-	      _react2['default'].createElement(
-	        _index.Footer,
-	        null,
-	        _react2['default'].createElement(
-	          'a',
-	          { href: '' },
-	          'Dcoumentation'
-	        ),
-	        _react2['default'].createElement(
-	          'a',
-	          { href: '' },
-	          'Example Source'
-	        ),
-	        _react2['default'].createElement(
-	          'a',
-	          { href: '' },
-	          'About'
-	        )
-	      ),
-	      _react2['default'].createElement(
 	        _index.SectionsContainer,
 	        _extends({ className: 'container' }, options),
 	        _react2['default'].createElement(
@@ -20252,12 +20214,14 @@
 	  },
 
 	  _shouldScroll: function _shouldScroll(activeSection) {
-	    console.log(activeSection);
 	    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
 	      // console.log('failed: ', activeSection);
 	      return false;
 	    }
 
+	    console.log(this.props.children);
+	    console.log(activeSection);
+	    console.log(this.state);
 	    // this._callOnLeave(activeSection);
 
 	    this._goToSection(activeSection);
