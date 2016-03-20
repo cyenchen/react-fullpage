@@ -78,11 +78,12 @@ var SectionsContainer = _react2['default'].createClass({
   componentWillUpdate: function componentWillUpdate(nextProps, nextState) {
     if (this.state.activeSection !== nextState.activeSection) {
       this.newSection = true;
-      if (this.props.updateBackground) this._changeBackground(nextState.activeSection);
     }
   },
 
-  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
+  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {
+    if (this.props.updateBackground) this._changeBackground(this.state.activeSection);
+  },
 
   componentWillMount: function componentWillMount() {
     this.touchStartY = 0;
@@ -143,7 +144,9 @@ var SectionsContainer = _react2['default'].createClass({
 
   _changeBackground: function _changeBackground(index) {
     var container = document.querySelector(this.props.containerSelector);
+    if (!container) return;
     var section = container.querySelectorAll("div.section")[index];
+    if (!section) return;
     container.style.background = window.getComputedStyle(section).getPropertyValue('background');
   },
 
@@ -412,10 +415,6 @@ var SectionsContainer = _react2['default'].createClass({
       // console.log('failed: ', activeSection);
       return false;
     }
-
-    console.log(this.props.children);
-    console.log(activeSection);
-    console.log(this.state);
     // this._callOnLeave(activeSection);
 
     this._goToSection(activeSection);
@@ -450,7 +449,6 @@ var SectionsContainer = _react2['default'].createClass({
 
     if (initialResize) {
       // index = this._getSectionIndexFromHash();
-      // if (index < 0) index = this.state.activeSection;
       state.activeSection = this.state.activeSection;
     }
 
