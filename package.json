@@ -1,6 +1,6 @@
 {
   "name": "react-fullpage",
-  "version": "0.1.4",
+  "version": "0.1.41",
   "description": "An implementation of fullpage.js in react",
   "main": "index.js",
   "scripts": {
