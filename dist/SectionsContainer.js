@@ -125,6 +125,7 @@ var SectionsContainer = _react2['default'].createClass({
   },
 
   componentWillUnmount: function componentWillUnmount() {
+    if (this.props.updateBackground) this._resetBackground();
     this._removeMouseWheelEventHandlers();
     this._removeTouchHandler();
     this.removeTransitionEnd();
@@ -144,6 +145,11 @@ var SectionsContainer = _react2['default'].createClass({
     var container = document.querySelector(this.props.containerSelector);
     var section = container.querySelectorAll("div.section")[index];
     container.style.background = window.getComputedStyle(section).getPropertyValue('background');
+  },
+
+  _resetBackground: function _resetBackground() {
+    var container = document.querySelector(this.props.containerSelector);
+    container.style.background = "rgba(0,0,0,0)";
   },
 
   _addCSS3Scroll: function _addCSS3Scroll() {

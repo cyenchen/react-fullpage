@@ -111,6 +111,8 @@ const SectionsContainer = React.createClass({
   },
 
   componentWillUnmount() {
+    if (this.props.updateBackground)
+      this._resetBackground();
     this._removeMouseWheelEventHandlers();
     this._removeTouchHandler();
     this.removeTransitionEnd();
@@ -130,6 +132,11 @@ const SectionsContainer = React.createClass({
     let container = document.querySelector(this.props.containerSelector);
     let section = container.querySelectorAll("div.section")[index];
     container.style.background = window.getComputedStyle(section).getPropertyValue('background');
+  },
+
+  _resetBackground() {
+    let container = document.querySelector(this.props.containerSelector);
+    container.style.background = "rgba(0,0,0,0)";
   },
 
   _addCSS3Scroll() {
