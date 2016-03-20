@@ -62,13 +62,12 @@ const SectionsContainer = React.createClass({
   componentWillUpdate(nextProps, nextState) {
     if (this.state.activeSection !== nextState.activeSection) {
       this.newSection = true;
+      if (this.props.updateBackground)
+        this._changeBackground(nextState.activeSection);
     }
   },
 
-  componentDidUpdate(prevProps, prevState) {
-    if (this.props.updateBackground)
-      this._changeBackground(this.state.activeSection);
-  },
+  componentDidUpdate(prevProps, prevState) { },
 
   componentWillMount() {
     this.touchStartY = 0;
@@ -135,7 +134,7 @@ const SectionsContainer = React.createClass({
       return;
     let section = container.querySelectorAll("div.section")[index];
     if (!section)
-      return; 
+    return;
     container.style.background = window.getComputedStyle(section).getPropertyValue('background');
   },
 

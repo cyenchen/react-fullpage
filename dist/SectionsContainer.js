@@ -78,12 +78,11 @@ var SectionsContainer = _react2['default'].createClass({
   componentWillUpdate: function componentWillUpdate(nextProps, nextState) {
     if (this.state.activeSection !== nextState.activeSection) {
       this.newSection = true;
+      if (this.props.updateBackground) this._changeBackground(nextState.activeSection);
     }
   },
 
-  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {
-    if (this.props.updateBackground) this._changeBackground(this.state.activeSection);
-  },
+  componentDidUpdate: function componentDidUpdate(prevProps, prevState) {},
 
   componentWillMount: function componentWillMount() {
     this.touchStartY = 0;
