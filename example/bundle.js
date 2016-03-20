@@ -20252,6 +20252,7 @@
 	  },
 
 	  _shouldScroll: function _shouldScroll(activeSection) {
+	    console.log(activeSection);
 	    if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
 	      // console.log('failed: ', activeSection);
 	      return false;
@@ -20259,14 +20260,7 @@
 
 	    // this._callOnLeave(activeSection);
 
-	    var index = this.props.anchors[activeSection];
-	    if (!this.props.anchors.length || index) {
-	      // let the hash listener catch this
-	      window.location.hash = '#' + index;
-	    } else {
-	      // console.log('GO TO SECTION: ', activeSection);
-	      this._goToSection(activeSection);
-	    }
+	    this._goToSection(activeSection);
 	  },
 
 	  _callOnLeave: function _callOnLeave(goingToIndex) {
