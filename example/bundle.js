@@ -19869,6 +19869,8 @@
 	  prevMouseWheelTime: new Date().getTime(),
 
 	  propTypes: {
+	    containerSelector: _react2['default'].PropTypes.string,
+	    updateBackground: _react2['default'].PropTypes.bool,
 	    delay: _react2['default'].PropTypes.number,
 	    verticalAlign: _react2['default'].PropTypes.bool,
 	    scrollBar: _react2['default'].PropTypes.bool,
@@ -19898,6 +19900,8 @@
 
 	  getDefaultProps: function getDefaultProps() {
 	    return {
+	      containerSelector: '#container',
+	      updateBackground: true,
 	      delay: 1000,
 	      verticalAlign: false,
 	      scrollBar: false,
@@ -19918,9 +19922,7 @@
 	  componentWillUpdate: function componentWillUpdate(nextProps, nextState) {
 	    if (this.state.activeSection !== nextState.activeSection) {
 	      this.newSection = true;
-	      var container = document.querySelector("#container");
-	      var section = container.querySelectorAll("div.section")[nextState.activeSection];
-	      container.style.background = window.getComputedStyle(section).getPropertyValue('background');
+	      if (this.props.updateBackground) this._changeBackground(nextState.activeSection);
 	    }
 	  },
 
@@ -19962,6 +19964,8 @@
 
 	    // Get actual window height
 	    if (this.state.windowHeight !== this._getHeight()) this._handleResize(true);
+
+	    if (this.props.updateBackground) this._changeBackground(this.state.activeSection);
 	  },
 
 	  componentWillUnmount: function componentWillUnmount() {
@@ -19978,6 +19982,12 @@
 	    if (!el) return window.innerHeight;
 	    var style = window.getComputedStyle(el);
 	    return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('border-top-width'));
+	  },
+
+	  _changeBackground: function _changeBackground(index) {
+	    var container = document.querySelector(this.props.containerSelector);
+	    var section = container.querySelectorAll("div.section")[index];
+	    container.style.background = window.getComputedStyle(section).getPropertyValue('background');
 	  },
 
 	  _addCSS3Scroll: function _addCSS3Scroll() {

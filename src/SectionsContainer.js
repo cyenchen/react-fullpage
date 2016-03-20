@@ -9,6 +9,8 @@ const SectionsContainer = React.createClass({
   prevMouseWheelTime: new Date().getTime(),
 
   propTypes: {
+    containerSelector:      React.PropTypes.string,
+    updateBackground:       React.PropTypes.bool,
     delay:                  React.PropTypes.number,
     verticalAlign:          React.PropTypes.bool,
     scrollBar:              React.PropTypes.bool,
@@ -38,6 +40,8 @@ const SectionsContainer = React.createClass({
 
   getDefaultProps() {
     return {
+      containerSelector:    '#container',
+      updateBackground:     true,
       delay:                1000,
       verticalAlign:        false,
       scrollBar:            false,
@@ -58,9 +62,8 @@ const SectionsContainer = React.createClass({
   componentWillUpdate(nextProps, nextState) {
     if (this.state.activeSection !== nextState.activeSection) {
       this.newSection = true;
-      let container = document.querySelector("#container");
-      let section = container.querySelectorAll("div.section")[nextState.activeSection];
-      container.style.background = window.getComputedStyle(section).getPropertyValue('background');
+      if (this.props.updateBackground)
+        this._changeBackground(nextState.activeSection);
     }
   },
 
@@ -102,6 +105,9 @@ const SectionsContainer = React.createClass({
 
     // Get actual window height
     if (this.state.windowHeight !== this._getHeight()) this._handleResize(true);
+
+    if (this.props.updateBackground)
+      this._changeBackground(this.state.activeSection);
   },
 
   componentWillUnmount() {
@@ -118,6 +124,12 @@ const SectionsContainer = React.createClass({
     if (!el) return window.innerHeight;
     let style = window.getComputedStyle(el);
     return parseFloat(style.getPropertyValue('height')) - parseFloat(style.getPropertyValue('border-top-width'));
+  },
+
+  _changeBackground(index) {
+    let container = document.querySelector(this.props.containerSelector);
+    let section = container.querySelectorAll("div.section")[index];
+    container.style.background = window.getComputedStyle(section).getPropertyValue('background');
   },
 
   _addCSS3Scroll() {
