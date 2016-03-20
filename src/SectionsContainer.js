@@ -388,7 +388,7 @@ const SectionsContainer = React.createClass({
 
   _shouldScroll(activeSection) {
     if (activeSection < 0 || activeSection >= this.props.children.length || activeSection === this.state.activeSection) {
-      console.log('failed: ', activeSection);
+      // console.log('failed: ', activeSection);
       return false;
     }
 
