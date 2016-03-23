@@ -28,6 +28,8 @@ var Section = _react2['default'].createClass({
   componentDidUpdate: function componentDidUpdate() {},
 
   render: function render() {
+    var _this = this;
+
     var alignVertical = this.props.verticalAlign;
 
     var sectionStyle = {
@@ -41,14 +43,18 @@ var Section = _react2['default'].createClass({
       paddingBottom: this.props.sectionPaddingBottom
     };
 
+    var children = _react2['default'].Children.map(this.props.children, function (child) {
+      return _react2['default'].cloneElement(child, { go: _this.props.go });
+    });
+
     return _react2['default'].createElement(
       'div',
       { className: this.props.sectionClassName + (this.props.className ? ' ' + this.props.className : ''), id: this.props.id, style: sectionStyle },
-      alignVertical ? this._renderVerticalAlign() : this.props.children
+      alignVertical ? this._renderVerticalAlign(children) : children
     );
   },
 
-  _renderVerticalAlign: function _renderVerticalAlign() {
+  _renderVerticalAlign: function _renderVerticalAlign(children) {
     var verticalAlignStyle = {
       display: 'table-cell',
       verticalAlign: 'middle',
@@ -58,7 +64,7 @@ var Section = _react2['default'].createClass({
     return _react2['default'].createElement(
       'div',
       { style: verticalAlignStyle },
-      this.props.children
+      children
     );
   }
 });
