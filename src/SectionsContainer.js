@@ -130,7 +130,9 @@ const SectionsContainer = React.createClass({
 
   _changeBackground(index) {
     let container = document.querySelector(this.props.containerSelector);
+    if (!container) return;
     let section = container.querySelectorAll("div.section")[index];
+    if (!section) return;
     container.style.background = window.getComputedStyle(section).getPropertyValue('background');
   },
 
