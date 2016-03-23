@@ -29,14 +29,18 @@ const Section = React.createClass({
       paddingBottom:    this.props.sectionPaddingBottom,
     };
 
+    let children = React.Children.map(this.props.children, (child) => {
+        return React.cloneElement(child, { go: this.props.go });
+    });
+
     return (
       <div className={this.props.sectionClassName + (this.props.className ? ` ${this.props.className}` : '')} id={this.props.id} style={sectionStyle}>
-        {alignVertical ? this._renderVerticalAlign() : this.props.children}
+        {alignVertical ? this._renderVerticalAlign(children) : children}
       </div>
     );
   },
 
-  _renderVerticalAlign() {
+  _renderVerticalAlign(children) {
     let verticalAlignStyle = {
       display: 'table-cell',
       verticalAlign: 'middle',
@@ -45,7 +49,7 @@ const Section = React.createClass({
 
     return (
       <div style={verticalAlignStyle}>
-        {this.props.children}
+        {children}
       </div>
     );
   }
