@@ -20254,6 +20254,7 @@
 
 	    if (initialResize) {
 	      // index = this._getSectionIndexFromHash();
+	      if (index < 0) index = this.state.activeSection;
 	      state.activeSection = this.state.activeSection;
 	    }
 

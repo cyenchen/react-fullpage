@@ -448,6 +448,7 @@ var SectionsContainer = _react2['default'].createClass({
 
     if (initialResize) {
       // index = this._getSectionIndexFromHash();
+      if (index < 0) index = this.state.activeSection;
       state.activeSection = this.state.activeSection;
     }
 
