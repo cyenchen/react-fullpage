@@ -505,7 +505,7 @@ var SectionsContainer = _react2['default'].createClass({
 		// const hash      = this.props.anchors[direction];
 
 		// this._callOnLeave(direction);
-		this._goToSection(direction);
+		this._shouldScroll(direction);
 		// if (!this.props.anchors.length || hash) {
 		//   // window.location.hash = '#' + hash;
 		// } else {
