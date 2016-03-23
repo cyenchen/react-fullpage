@@ -183,7 +183,9 @@ const SectionsContainer = React.createClass({
 		  verticalAlign:          this.props.verticalAlign,
 		  sectionClassName:       this.props.sectionClassName,
 		  sectionPaddingTop:      this.props.sectionPaddingTop,
-		  sectionPaddingBottom:   this.props.sectionPaddingBottom
+		  sectionPaddingBottom:   this.props.sectionPaddingBottom,
+      prev:                   this._goToSection(index - 1),
+      next:                   this._goToSection(index + 1)
 		});
 	  } else {
 		return child;
