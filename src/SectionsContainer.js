@@ -184,8 +184,7 @@ const SectionsContainer = React.createClass({
 		  sectionClassName:       this.props.sectionClassName,
 		  sectionPaddingTop:      this.props.sectionPaddingTop,
 		  sectionPaddingBottom:   this.props.sectionPaddingBottom,
-      prev:                   this._goToSection(index - 1),
-      next:                   this._goToSection(index + 1)
+      go:                     this._goToSection
 		});
 	  } else {
 		return child;
