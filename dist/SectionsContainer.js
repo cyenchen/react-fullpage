@@ -243,10 +243,10 @@ var SectionsContainer = _react2['default'].createClass({
 			// Microsoft pointers
 			var MSPointer = this._getMSPointer();
 
-			document.removeEventListener('touchstart');
-			document.removeEventListener('touchmove');
-			document.removeEventListener(MSPointer.down);
-			document.removeEventListener(MSPointer.move);
+			document.removeEventListener('touchstart', this._touchStartHandler);
+			document.removeEventListener('touchmove', this._touchMoveHandler);
+			document.removeEventListener(MSPointer.down, this._touchStartHandler);
+			document.removeEventListener(MSPointer.move, this._touchMoveHandler);
 		}
 	},
 
