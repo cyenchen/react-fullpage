@@ -408,6 +408,8 @@ const SectionsContainer = React.createClass({
   },
 
   _callOnLeave(goingToIndex) {
+    let activeLinks = document.querySelectorAll(`.${this.props.anchors[this.state.activeSection]}`);
+    activeLinks[0].className = activeLinks[0].className.replace(/\b ?active/g, '');
     if (typeof this.props.onLeave === 'function') {
       this.props.onLeave(this.state.activeSection, goingToIndex);
     }
@@ -448,7 +450,8 @@ const SectionsContainer = React.createClass({
     windowHeight = windowHeight || this.state.windowHeight;
 
     let position = 0 - (index * windowHeight);
-
+    let activeLinks = document.querySelectorAll(`.${this.props.anchors[index]}`);
+    activeLinks[0].className = activeLinks[0].className + (activeLinks[0].className.length > 0 ? ' ': '') + `${this.props.activeClass}`;
     if (this.props.anchors[index] === 'footer' && this.props.autoFooterHeight && this.refs.footer) {
       const elm = ReactDOM.findDOMNode(this.refs.footer);
 
