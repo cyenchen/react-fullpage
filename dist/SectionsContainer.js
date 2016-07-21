@@ -547,7 +547,10 @@ var SectionsContainer = _react2['default'].createClass({
         display: 'block',
         margin: '10px',
         borderRadius: '100%',
-        backgroundColor: '#556270',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: '#fff',
+        backgroundColor: '#ff8500',
         padding: '5px',
         transition: 'all 0.2s',
         transform: _this2.state.activeSection === index ? 'scale(1.3)' : 'none'
